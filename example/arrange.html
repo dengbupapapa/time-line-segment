@@ -67,27 +67,19 @@
 </head>
 <body>
     <div>
-        <button id="loop">持续循环</button>
-        <input type="range" id="repeat" min="1" max="10" value="1">
-        <span>重复次数：</span>
-        <span id="repeatResult">1</span>
+        <button id="forward">arrange正序</button>
+        <button id="back">arrange回放</button>
+        排序类型：
+        <span id="arrangeType">正序</span>
     </div>
     <div>
-        <button id="pushForwardArrange">追加正序segments</button>
-        <button id="pushBackArrange">追加回放segments</button>
-        <button id="clearArrangements">清理排序集合</button>
-        <span>排序集合：</span>
-        <span id="arrangements">默认forward</span>
-
-    </div>
-    <div>
-        <button id="lineStart">line开始</button>
-        <button id="lineStop">line停止</button>
-        <button id="linePause">line暂停</button>
-        <button id="lineResume">line继续</button>
+        <button id="arrangeStart">arrange开始</button>
+        <button id="arrangeStop">arrange停止</button>
+        <button id="arrangePause">arrange暂停</button>
+        <button id="arrangeResume">arrange继续</button>
     </div>
     <div id="griddingBox" class="griddings"></div>
-    <script type="text/javascript" src="./index.test.js"></script>
+    <script type="text/javascript" src="../index.test.js"></script>
     <script type="text/javascript">
 
         function createElement(k){
@@ -146,10 +138,10 @@
 
         window.onload = function () {
 
-            let timeLine = new TimeLine();
             let Segment = TimeLine.Segment;
-            window.timeLine = timeLine;
+            let Arrange = TimeLine.Arrange;
 
+            let segments = [];
             for (let j = 0; j < 3; j++) {
 
                 createElement(j);
@@ -169,10 +161,9 @@
                         document.getElementById('red'+j).style.left = (globalPercent*100) + '%';
                         document.getElementById('red'+j).style.transform=`rotate(${(globalPercent*360)}deg)`;
                     })
-                    .transaction(startTime1, endTime1, function (time, elapsed, globalPercent) {
+                    .transaction(startTime1, endTime1, function (time, elapsed) {
                         document.getElementById('yellow'+j).style.left = (elapsed*100) + '%';
                         document.getElementById('yellow'+j).style.transform=`rotate(${(elapsed*360)}deg)`;
-                        // console.log(time, elapsed, globalPercent);
                     }, {
                         // easing:TimeLine.Easing.Elastic.InOut,
                         name:'yellow'+j
@@ -209,21 +200,25 @@
                     .addEventListener('resume', (a)=>{
                         // console.log('onResume',a);
                     });
-                timeLine.addSegment(segment);
+                segments.push(segment);
             }
+            let arrange = new Arrange(segments);
 
-            timeLine
+            window.arrange = arrange;
+
+            arrange
                 .addEventListener('start', (a)=>{
                     console.log('onStart',a);
+                    // arrange = arrange1
                 })
                 .addEventListener('stop', (a)=>{
                     console.log('onStop',a);
                 })
-                .addEventListener('complete', (a)=>{
-                    console.log('onComplete',a);
-                })
                 .addEventListener('finish', (a)=>{
                     console.log('onFinish',a);
+                })
+                .addEventListener('complete', (a)=>{
+                    console.log('onComplete',a);
                 })
                 .addEventListener('pause', (a)=>{
                     console.log('onPause',a);
@@ -232,42 +227,31 @@
                     console.log('onResume',a);
                 });
 
-            document.getElementById('lineStart').addEventListener('click',function(){
-                timeLine.start();
+            document.getElementById('forward').addEventListener('click',function(){
+                arrange.forward();
+                document.getElementById('arrangeType').innerText = '正序';
             });
-            document.getElementById('lineStop').addEventListener('click',function(){
-                timeLine.stop();
-            });
-            document.getElementById('linePause').addEventListener('click',function(){
-                timeLine.pause();
-            });
-            document.getElementById('lineResume').addEventListener('click',function(){
-                timeLine.resume();
+            document.getElementById('back').addEventListener('click',function(){
+                arrange.back();
+                document.getElementById('arrangeType').innerText = '回放';
             });
 
-            document.getElementById('pushForwardArrange').addEventListener('click',function(){
-                timeLine.pushForwardArrange();
-                document.getElementById('arrangements').innerText = timeLine.getArrangements().map((arrange)=>arrange._type).join(',');
+            document.getElementById('arrangeStart').addEventListener('click',function(){
+                arrange.start();
             });
-            document.getElementById('pushBackArrange').addEventListener('click',function(){
-                timeLine.pushBackArrange();
-                document.getElementById('arrangements').innerText = timeLine.getArrangements().map((arrange)=>arrange._type).join(',');
+            document.getElementById('arrangeStop').addEventListener('click',function(){
+                arrange.stop();
             });
-            document.getElementById('clearArrangements').addEventListener('click',function(){
-                timeLine.clearArrangements();
-                document.getElementById('arrangements').innerText = '默认forward';
+            document.getElementById('arrangePause').addEventListener('click',function(){
+                arrange.pause();
             });
-
-            document.getElementById('repeat').addEventListener('change',function(value){
-                timeLine.repeat(Number(this.value));
-                document.getElementById('repeatResult').innerText = this.value;
+            document.getElementById('arrangeResume').addEventListener('click',function(){
+                arrange.resume();
             });
 
-            document.getElementById('loop').addEventListener('click',function(value){
-                timeLine.loop();
-                document.getElementById('repeatResult').innerText = Infinity;
-            });
-
+            // document.getElementById('forward').addEventListener('click',function(){
+            //     arrange.forward();
+            // });
 
             animate();
 

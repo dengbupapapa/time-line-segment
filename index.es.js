@@ -1,3 +1,229 @@
+var global$1 = (typeof global !== "undefined" ? global :
+            typeof self !== "undefined" ? self :
+            typeof window !== "undefined" ? window : {});
+
+// shim for using process in browser
+// based off https://github.com/defunctzombie/node-process/blob/master/browser.js
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+var cachedSetTimeout = defaultSetTimout;
+var cachedClearTimeout = defaultClearTimeout;
+if (typeof global$1.setTimeout === 'function') {
+    cachedSetTimeout = setTimeout;
+}
+if (typeof global$1.clearTimeout === 'function') {
+    cachedClearTimeout = clearTimeout;
+}
+
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+function nextTick(fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+}
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+var title = 'browser';
+var platform = 'browser';
+var browser = true;
+var env = {};
+var argv = [];
+var version = ''; // empty string to avoid regexp issues
+var versions = {};
+var release = {};
+var config = {};
+
+function noop() {}
+
+var on = noop;
+var addListener = noop;
+var once = noop;
+var off = noop;
+var removeListener = noop;
+var removeAllListeners = noop;
+var emit = noop;
+
+function binding(name) {
+    throw new Error('process.binding is not supported');
+}
+
+function cwd () { return '/' }
+function chdir (dir) {
+    throw new Error('process.chdir is not supported');
+}function umask() { return 0; }
+
+// from https://github.com/kumavis/browser-process-hrtime/blob/master/index.js
+var performance = global$1.performance || {};
+var performanceNow =
+  performance.now        ||
+  performance.mozNow     ||
+  performance.msNow      ||
+  performance.oNow       ||
+  performance.webkitNow  ||
+  function(){ return (new Date()).getTime() };
+
+// generate timestamp or delta
+// see http://nodejs.org/api/process.html#process_process_hrtime
+function hrtime(previousTimestamp){
+  var clocktime = performanceNow.call(performance)*1e-3;
+  var seconds = Math.floor(clocktime);
+  var nanoseconds = Math.floor((clocktime%1)*1e9);
+  if (previousTimestamp) {
+    seconds = seconds - previousTimestamp[0];
+    nanoseconds = nanoseconds - previousTimestamp[1];
+    if (nanoseconds<0) {
+      seconds--;
+      nanoseconds += 1e9;
+    }
+  }
+  return [seconds,nanoseconds]
+}
+
+var startTime = new Date();
+function uptime() {
+  var currentTime = new Date();
+  var dif = currentTime - startTime;
+  return dif / 1000;
+}
+
+var process = {
+  nextTick: nextTick,
+  title: title,
+  browser: browser,
+  env: env,
+  argv: argv,
+  version: version,
+  versions: versions,
+  on: on,
+  addListener: addListener,
+  once: once,
+  off: off,
+  removeListener: removeListener,
+  removeAllListeners: removeAllListeners,
+  emit: emit,
+  binding: binding,
+  cwd: cwd,
+  chdir: chdir,
+  umask: umask,
+  hrtime: hrtime,
+  platform: platform,
+  release: release,
+  config: config,
+  uptime: uptime
+};
+
 function unwrapExports (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
@@ -5,37 +231,6 @@ function unwrapExports (x) {
 function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
-
-// 7.1.4 ToInteger
-var ceil = Math.ceil;
-var floor = Math.floor;
-var _toInteger = function (it) {
-  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
-};
-
-// 7.2.1 RequireObjectCoercible(argument)
-var _defined = function (it) {
-  if (it == undefined) throw TypeError("Can't call method on  " + it);
-  return it;
-};
-
-// true  -> String#at
-// false -> String#codePointAt
-var _stringAt = function (TO_STRING) {
-  return function (that, pos) {
-    var s = String(_defined(that));
-    var i = _toInteger(pos);
-    var l = s.length;
-    var a, b;
-    if (i < 0 || i >= l) return TO_STRING ? '' : undefined;
-    a = s.charCodeAt(i);
-    return a < 0xd800 || a > 0xdbff || i + 1 === l || (b = s.charCodeAt(i + 1)) < 0xdc00 || b > 0xdfff
-      ? TO_STRING ? s.charAt(i) : a
-      : TO_STRING ? s.slice(i, i + 2) : (a - 0xd800 << 10) + (b - 0xdc00) + 0x10000;
-  };
-};
-
-var _library = true;
 
 var _global = createCommonjsModule(function (module) {
 // https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
@@ -221,10 +416,6 @@ $export.U = 64;  // safe
 $export.R = 128; // real proto method for `library`
 var _export = $export;
 
-var _redefine = _hide;
-
-var _iterators = {};
-
 var toString = {}.toString;
 
 var _cof = function (it) {
@@ -238,11 +429,24 @@ var _iobject = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
   return _cof(it) == 'String' ? it.split('') : Object(it);
 };
 
+// 7.2.1 RequireObjectCoercible(argument)
+var _defined = function (it) {
+  if (it == undefined) throw TypeError("Can't call method on  " + it);
+  return it;
+};
+
 // to indexed object, toObject with fallback for non-array-like ES3 strings
 
 
 var _toIobject = function (it) {
   return _iobject(_defined(it));
+};
+
+// 7.1.4 ToInteger
+var ceil = Math.ceil;
+var floor = Math.floor;
+var _toInteger = function (it) {
+  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
 };
 
 // 7.1.15 ToLength
@@ -282,6 +486,8 @@ var _arrayIncludes = function (IS_INCLUDES) {
     } return !IS_INCLUDES && -1;
   };
 };
+
+var _library = true;
 
 var _shared = createCommonjsModule(function (module) {
 var SHARED = '__core-js_shared__';
@@ -391,6 +597,99 @@ var _objectCreate = Object.create || function create(O, Properties) {
   } else result = createDict();
   return Properties === undefined ? result : _objectDps(result, Properties);
 };
+
+// 19.1.2.2 / 15.2.3.5 Object.create(O [, Properties])
+_export(_export.S, 'Object', { create: _objectCreate });
+
+var $Object = _core.Object;
+var create = function create(P, D) {
+  return $Object.create(P, D);
+};
+
+var create$1 = createCommonjsModule(function (module) {
+module.exports = { "default": create, __esModule: true };
+});
+
+var _Object$create = unwrapExports(create$1);
+
+var f$1 = {}.propertyIsEnumerable;
+
+var _objectPie = {
+	f: f$1
+};
+
+var gOPD = Object.getOwnPropertyDescriptor;
+
+var f$2 = _descriptors ? gOPD : function getOwnPropertyDescriptor(O, P) {
+  O = _toIobject(O);
+  P = _toPrimitive(P, true);
+  if (_ie8DomDefine) try {
+    return gOPD(O, P);
+  } catch (e) { /* empty */ }
+  if (_has(O, P)) return _propertyDesc(!_objectPie.f.call(O, P), O[P]);
+};
+
+var _objectGopd = {
+	f: f$2
+};
+
+// Works with __proto__ only. Old v8 can't work with null proto objects.
+/* eslint-disable no-proto */
+
+
+var check = function (O, proto) {
+  _anObject(O);
+  if (!_isObject(proto) && proto !== null) throw TypeError(proto + ": can't set as prototype!");
+};
+var _setProto = {
+  set: Object.setPrototypeOf || ('__proto__' in {} ? // eslint-disable-line
+    function (test, buggy, set) {
+      try {
+        set = _ctx(Function.call, _objectGopd.f(Object.prototype, '__proto__').set, 2);
+        set(test, []);
+        buggy = !(test instanceof Array);
+      } catch (e) { buggy = true; }
+      return function setPrototypeOf(O, proto) {
+        check(O, proto);
+        if (buggy) O.__proto__ = proto;
+        else set(O, proto);
+        return O;
+      };
+    }({}, false) : undefined),
+  check: check
+};
+
+// 19.1.3.19 Object.setPrototypeOf(O, proto)
+
+_export(_export.S, 'Object', { setPrototypeOf: _setProto.set });
+
+var setPrototypeOf = _core.Object.setPrototypeOf;
+
+var setPrototypeOf$1 = createCommonjsModule(function (module) {
+module.exports = { "default": setPrototypeOf, __esModule: true };
+});
+
+var _Object$setPrototypeOf = unwrapExports(setPrototypeOf$1);
+
+// true  -> String#at
+// false -> String#codePointAt
+var _stringAt = function (TO_STRING) {
+  return function (that, pos) {
+    var s = String(_defined(that));
+    var i = _toInteger(pos);
+    var l = s.length;
+    var a, b;
+    if (i < 0 || i >= l) return TO_STRING ? '' : undefined;
+    a = s.charCodeAt(i);
+    return a < 0xd800 || a > 0xdbff || i + 1 === l || (b = s.charCodeAt(i + 1)) < 0xdc00 || b > 0xdfff
+      ? TO_STRING ? s.charAt(i) : a
+      : TO_STRING ? s.slice(i, i + 2) : (a - 0xd800 << 10) + (b - 0xdc00) + 0x10000;
+  };
+};
+
+var _redefine = _hide;
+
+var _iterators = {};
 
 var _wks = createCommonjsModule(function (module) {
 var store = _shared('wks');
@@ -565,655 +864,19 @@ for (var i = 0; i < DOMIterables.length; i++) {
   _iterators[NAME] = _iterators.Array;
 }
 
-// getting tag from 19.1.3.6 Object.prototype.toString()
+var f$3 = _wks;
 
-var TAG$1 = _wks('toStringTag');
-// ES3 wrong here
-var ARG = _cof(function () { return arguments; }()) == 'Arguments';
-
-// fallback for IE11 Script Access Denied error
-var tryGet = function (it, key) {
-  try {
-    return it[key];
-  } catch (e) { /* empty */ }
+var _wksExt = {
+	f: f$3
 };
 
-var _classof = function (it) {
-  var O, T, B;
-  return it === undefined ? 'Undefined' : it === null ? 'Null'
-    // @@toStringTag case
-    : typeof (T = tryGet(O = Object(it), TAG$1)) == 'string' ? T
-    // builtinTag case
-    : ARG ? _cof(O)
-    // ES3 arguments fallback
-    : (B = _cof(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : B;
-};
+var iterator = _wksExt.f('iterator');
 
-var _anInstance = function (it, Constructor, name, forbiddenField) {
-  if (!(it instanceof Constructor) || (forbiddenField !== undefined && forbiddenField in it)) {
-    throw TypeError(name + ': incorrect invocation!');
-  } return it;
-};
-
-// call something on iterator step with safe closing on error
-
-var _iterCall = function (iterator, fn, value, entries) {
-  try {
-    return entries ? fn(_anObject(value)[0], value[1]) : fn(value);
-  // 7.4.6 IteratorClose(iterator, completion)
-  } catch (e) {
-    var ret = iterator['return'];
-    if (ret !== undefined) _anObject(ret.call(iterator));
-    throw e;
-  }
-};
-
-// check on default Array iterator
-
-var ITERATOR$1 = _wks('iterator');
-var ArrayProto = Array.prototype;
-
-var _isArrayIter = function (it) {
-  return it !== undefined && (_iterators.Array === it || ArrayProto[ITERATOR$1] === it);
-};
-
-var ITERATOR$2 = _wks('iterator');
-
-var core_getIteratorMethod = _core.getIteratorMethod = function (it) {
-  if (it != undefined) return it[ITERATOR$2]
-    || it['@@iterator']
-    || _iterators[_classof(it)];
-};
-
-var _forOf = createCommonjsModule(function (module) {
-var BREAK = {};
-var RETURN = {};
-var exports = module.exports = function (iterable, entries, fn, that, ITERATOR) {
-  var iterFn = ITERATOR ? function () { return iterable; } : core_getIteratorMethod(iterable);
-  var f = _ctx(fn, that, entries ? 2 : 1);
-  var index = 0;
-  var length, step, iterator, result;
-  if (typeof iterFn != 'function') throw TypeError(iterable + ' is not iterable!');
-  // fast case for arrays with default iterator
-  if (_isArrayIter(iterFn)) for (length = _toLength(iterable.length); length > index; index++) {
-    result = entries ? f(_anObject(step = iterable[index])[0], step[1]) : f(iterable[index]);
-    if (result === BREAK || result === RETURN) return result;
-  } else for (iterator = iterFn.call(iterable); !(step = iterator.next()).done;) {
-    result = _iterCall(iterator, f, step.value, entries);
-    if (result === BREAK || result === RETURN) return result;
-  }
-};
-exports.BREAK = BREAK;
-exports.RETURN = RETURN;
+var iterator$1 = createCommonjsModule(function (module) {
+module.exports = { "default": iterator, __esModule: true };
 });
 
-// 7.3.20 SpeciesConstructor(O, defaultConstructor)
-
-
-var SPECIES = _wks('species');
-var _speciesConstructor = function (O, D) {
-  var C = _anObject(O).constructor;
-  var S;
-  return C === undefined || (S = _anObject(C)[SPECIES]) == undefined ? D : _aFunction(S);
-};
-
-// fast apply, http://jsperf.lnkit.com/fast-apply/5
-var _invoke = function (fn, args, that) {
-  var un = that === undefined;
-  switch (args.length) {
-    case 0: return un ? fn()
-                      : fn.call(that);
-    case 1: return un ? fn(args[0])
-                      : fn.call(that, args[0]);
-    case 2: return un ? fn(args[0], args[1])
-                      : fn.call(that, args[0], args[1]);
-    case 3: return un ? fn(args[0], args[1], args[2])
-                      : fn.call(that, args[0], args[1], args[2]);
-    case 4: return un ? fn(args[0], args[1], args[2], args[3])
-                      : fn.call(that, args[0], args[1], args[2], args[3]);
-  } return fn.apply(that, args);
-};
-
-var process = _global.process;
-var setTask = _global.setImmediate;
-var clearTask = _global.clearImmediate;
-var MessageChannel = _global.MessageChannel;
-var Dispatch = _global.Dispatch;
-var counter = 0;
-var queue = {};
-var ONREADYSTATECHANGE = 'onreadystatechange';
-var defer, channel, port;
-var run = function () {
-  var id = +this;
-  // eslint-disable-next-line no-prototype-builtins
-  if (queue.hasOwnProperty(id)) {
-    var fn = queue[id];
-    delete queue[id];
-    fn();
-  }
-};
-var listener = function (event) {
-  run.call(event.data);
-};
-// Node.js 0.9+ & IE10+ has setImmediate, otherwise:
-if (!setTask || !clearTask) {
-  setTask = function setImmediate(fn) {
-    var args = [];
-    var i = 1;
-    while (arguments.length > i) args.push(arguments[i++]);
-    queue[++counter] = function () {
-      // eslint-disable-next-line no-new-func
-      _invoke(typeof fn == 'function' ? fn : Function(fn), args);
-    };
-    defer(counter);
-    return counter;
-  };
-  clearTask = function clearImmediate(id) {
-    delete queue[id];
-  };
-  // Node.js 0.8-
-  if (_cof(process) == 'process') {
-    defer = function (id) {
-      process.nextTick(_ctx(run, id, 1));
-    };
-  // Sphere (JS game engine) Dispatch API
-  } else if (Dispatch && Dispatch.now) {
-    defer = function (id) {
-      Dispatch.now(_ctx(run, id, 1));
-    };
-  // Browsers with MessageChannel, includes WebWorkers
-  } else if (MessageChannel) {
-    channel = new MessageChannel();
-    port = channel.port2;
-    channel.port1.onmessage = listener;
-    defer = _ctx(port.postMessage, port, 1);
-  // Browsers with postMessage, skip WebWorkers
-  // IE8 has postMessage, but it's sync & typeof its postMessage is 'object'
-  } else if (_global.addEventListener && typeof postMessage == 'function' && !_global.importScripts) {
-    defer = function (id) {
-      _global.postMessage(id + '', '*');
-    };
-    _global.addEventListener('message', listener, false);
-  // IE8-
-  } else if (ONREADYSTATECHANGE in _domCreate('script')) {
-    defer = function (id) {
-      _html.appendChild(_domCreate('script'))[ONREADYSTATECHANGE] = function () {
-        _html.removeChild(this);
-        run.call(id);
-      };
-    };
-  // Rest old browsers
-  } else {
-    defer = function (id) {
-      setTimeout(_ctx(run, id, 1), 0);
-    };
-  }
-}
-var _task = {
-  set: setTask,
-  clear: clearTask
-};
-
-var macrotask = _task.set;
-var Observer = _global.MutationObserver || _global.WebKitMutationObserver;
-var process$1 = _global.process;
-var Promise = _global.Promise;
-var isNode = _cof(process$1) == 'process';
-
-var _microtask = function () {
-  var head, last, notify;
-
-  var flush = function () {
-    var parent, fn;
-    if (isNode && (parent = process$1.domain)) parent.exit();
-    while (head) {
-      fn = head.fn;
-      head = head.next;
-      try {
-        fn();
-      } catch (e) {
-        if (head) notify();
-        else last = undefined;
-        throw e;
-      }
-    } last = undefined;
-    if (parent) parent.enter();
-  };
-
-  // Node.js
-  if (isNode) {
-    notify = function () {
-      process$1.nextTick(flush);
-    };
-  // browsers with MutationObserver, except iOS Safari - https://github.com/zloirock/core-js/issues/339
-  } else if (Observer && !(_global.navigator && _global.navigator.standalone)) {
-    var toggle = true;
-    var node = document.createTextNode('');
-    new Observer(flush).observe(node, { characterData: true }); // eslint-disable-line no-new
-    notify = function () {
-      node.data = toggle = !toggle;
-    };
-  // environments with maybe non-completely correct, but existent Promise
-  } else if (Promise && Promise.resolve) {
-    // Promise.resolve without an argument throws an error in LG WebOS 2
-    var promise = Promise.resolve(undefined);
-    notify = function () {
-      promise.then(flush);
-    };
-  // for other environments - macrotask based on:
-  // - setImmediate
-  // - MessageChannel
-  // - window.postMessag
-  // - onreadystatechange
-  // - setTimeout
-  } else {
-    notify = function () {
-      // strange IE + webpack dev server bug - use .call(global)
-      macrotask.call(_global, flush);
-    };
-  }
-
-  return function (fn) {
-    var task = { fn: fn, next: undefined };
-    if (last) last.next = task;
-    if (!head) {
-      head = task;
-      notify();
-    } last = task;
-  };
-};
-
-// 25.4.1.5 NewPromiseCapability(C)
-
-
-function PromiseCapability(C) {
-  var resolve, reject;
-  this.promise = new C(function ($$resolve, $$reject) {
-    if (resolve !== undefined || reject !== undefined) throw TypeError('Bad Promise constructor');
-    resolve = $$resolve;
-    reject = $$reject;
-  });
-  this.resolve = _aFunction(resolve);
-  this.reject = _aFunction(reject);
-}
-
-var f$1 = function (C) {
-  return new PromiseCapability(C);
-};
-
-var _newPromiseCapability = {
-	f: f$1
-};
-
-var _perform = function (exec) {
-  try {
-    return { e: false, v: exec() };
-  } catch (e) {
-    return { e: true, v: e };
-  }
-};
-
-var navigator = _global.navigator;
-
-var _userAgent = navigator && navigator.userAgent || '';
-
-var _promiseResolve = function (C, x) {
-  _anObject(C);
-  if (_isObject(x) && x.constructor === C) return x;
-  var promiseCapability = _newPromiseCapability.f(C);
-  var resolve = promiseCapability.resolve;
-  resolve(x);
-  return promiseCapability.promise;
-};
-
-var _redefineAll = function (target, src, safe) {
-  for (var key in src) {
-    if (safe && target[key]) target[key] = src[key];
-    else _hide(target, key, src[key]);
-  } return target;
-};
-
-var SPECIES$1 = _wks('species');
-
-var _setSpecies = function (KEY) {
-  var C = typeof _core[KEY] == 'function' ? _core[KEY] : _global[KEY];
-  if (_descriptors && C && !C[SPECIES$1]) _objectDp.f(C, SPECIES$1, {
-    configurable: true,
-    get: function () { return this; }
-  });
-};
-
-var ITERATOR$3 = _wks('iterator');
-var SAFE_CLOSING = false;
-
-try {
-  var riter = [7][ITERATOR$3]();
-  riter['return'] = function () { SAFE_CLOSING = true; };
-  // eslint-disable-next-line no-throw-literal
-  Array.from(riter, function () { throw 2; });
-} catch (e) { /* empty */ }
-
-var _iterDetect = function (exec, skipClosing) {
-  if (!skipClosing && !SAFE_CLOSING) return false;
-  var safe = false;
-  try {
-    var arr = [7];
-    var iter = arr[ITERATOR$3]();
-    iter.next = function () { return { done: safe = true }; };
-    arr[ITERATOR$3] = function () { return iter; };
-    exec(arr);
-  } catch (e) { /* empty */ }
-  return safe;
-};
-
-var task = _task.set;
-var microtask = _microtask();
-
-
-
-
-var PROMISE = 'Promise';
-var TypeError$1 = _global.TypeError;
-var process$2 = _global.process;
-var versions = process$2 && process$2.versions;
-var v8 = versions && versions.v8 || '';
-var $Promise = _global[PROMISE];
-var isNode$1 = _classof(process$2) == 'process';
-var empty = function () { /* empty */ };
-var Internal, newGenericPromiseCapability, OwnPromiseCapability, Wrapper;
-var newPromiseCapability = newGenericPromiseCapability = _newPromiseCapability.f;
-
-var USE_NATIVE = !!function () {
-  try {
-    // correct subclassing with @@species support
-    var promise = $Promise.resolve(1);
-    var FakePromise = (promise.constructor = {})[_wks('species')] = function (exec) {
-      exec(empty, empty);
-    };
-    // unhandled rejections tracking support, NodeJS Promise without it fails @@species test
-    return (isNode$1 || typeof PromiseRejectionEvent == 'function')
-      && promise.then(empty) instanceof FakePromise
-      // v8 6.6 (Node 10 and Chrome 66) have a bug with resolving custom thenables
-      // https://bugs.chromium.org/p/chromium/issues/detail?id=830565
-      // we can't detect it synchronously, so just check versions
-      && v8.indexOf('6.6') !== 0
-      && _userAgent.indexOf('Chrome/66') === -1;
-  } catch (e) { /* empty */ }
-}();
-
-// helpers
-var isThenable = function (it) {
-  var then;
-  return _isObject(it) && typeof (then = it.then) == 'function' ? then : false;
-};
-var notify = function (promise, isReject) {
-  if (promise._n) return;
-  promise._n = true;
-  var chain = promise._c;
-  microtask(function () {
-    var value = promise._v;
-    var ok = promise._s == 1;
-    var i = 0;
-    var run = function (reaction) {
-      var handler = ok ? reaction.ok : reaction.fail;
-      var resolve = reaction.resolve;
-      var reject = reaction.reject;
-      var domain = reaction.domain;
-      var result, then, exited;
-      try {
-        if (handler) {
-          if (!ok) {
-            if (promise._h == 2) onHandleUnhandled(promise);
-            promise._h = 1;
-          }
-          if (handler === true) result = value;
-          else {
-            if (domain) domain.enter();
-            result = handler(value); // may throw
-            if (domain) {
-              domain.exit();
-              exited = true;
-            }
-          }
-          if (result === reaction.promise) {
-            reject(TypeError$1('Promise-chain cycle'));
-          } else if (then = isThenable(result)) {
-            then.call(result, resolve, reject);
-          } else resolve(result);
-        } else reject(value);
-      } catch (e) {
-        if (domain && !exited) domain.exit();
-        reject(e);
-      }
-    };
-    while (chain.length > i) run(chain[i++]); // variable length - can't use forEach
-    promise._c = [];
-    promise._n = false;
-    if (isReject && !promise._h) onUnhandled(promise);
-  });
-};
-var onUnhandled = function (promise) {
-  task.call(_global, function () {
-    var value = promise._v;
-    var unhandled = isUnhandled(promise);
-    var result, handler, console;
-    if (unhandled) {
-      result = _perform(function () {
-        if (isNode$1) {
-          process$2.emit('unhandledRejection', value, promise);
-        } else if (handler = _global.onunhandledrejection) {
-          handler({ promise: promise, reason: value });
-        } else if ((console = _global.console) && console.error) {
-          console.error('Unhandled promise rejection', value);
-        }
-      });
-      // Browsers should not trigger `rejectionHandled` event if it was handled here, NodeJS - should
-      promise._h = isNode$1 || isUnhandled(promise) ? 2 : 1;
-    } promise._a = undefined;
-    if (unhandled && result.e) throw result.v;
-  });
-};
-var isUnhandled = function (promise) {
-  return promise._h !== 1 && (promise._a || promise._c).length === 0;
-};
-var onHandleUnhandled = function (promise) {
-  task.call(_global, function () {
-    var handler;
-    if (isNode$1) {
-      process$2.emit('rejectionHandled', promise);
-    } else if (handler = _global.onrejectionhandled) {
-      handler({ promise: promise, reason: promise._v });
-    }
-  });
-};
-var $reject = function (value) {
-  var promise = this;
-  if (promise._d) return;
-  promise._d = true;
-  promise = promise._w || promise; // unwrap
-  promise._v = value;
-  promise._s = 2;
-  if (!promise._a) promise._a = promise._c.slice();
-  notify(promise, true);
-};
-var $resolve = function (value) {
-  var promise = this;
-  var then;
-  if (promise._d) return;
-  promise._d = true;
-  promise = promise._w || promise; // unwrap
-  try {
-    if (promise === value) throw TypeError$1("Promise can't be resolved itself");
-    if (then = isThenable(value)) {
-      microtask(function () {
-        var wrapper = { _w: promise, _d: false }; // wrap
-        try {
-          then.call(value, _ctx($resolve, wrapper, 1), _ctx($reject, wrapper, 1));
-        } catch (e) {
-          $reject.call(wrapper, e);
-        }
-      });
-    } else {
-      promise._v = value;
-      promise._s = 1;
-      notify(promise, false);
-    }
-  } catch (e) {
-    $reject.call({ _w: promise, _d: false }, e); // wrap
-  }
-};
-
-// constructor polyfill
-if (!USE_NATIVE) {
-  // 25.4.3.1 Promise(executor)
-  $Promise = function Promise(executor) {
-    _anInstance(this, $Promise, PROMISE, '_h');
-    _aFunction(executor);
-    Internal.call(this);
-    try {
-      executor(_ctx($resolve, this, 1), _ctx($reject, this, 1));
-    } catch (err) {
-      $reject.call(this, err);
-    }
-  };
-  // eslint-disable-next-line no-unused-vars
-  Internal = function Promise(executor) {
-    this._c = [];             // <- awaiting reactions
-    this._a = undefined;      // <- checked in isUnhandled reactions
-    this._s = 0;              // <- state
-    this._d = false;          // <- done
-    this._v = undefined;      // <- value
-    this._h = 0;              // <- rejection state, 0 - default, 1 - handled, 2 - unhandled
-    this._n = false;          // <- notify
-  };
-  Internal.prototype = _redefineAll($Promise.prototype, {
-    // 25.4.5.3 Promise.prototype.then(onFulfilled, onRejected)
-    then: function then(onFulfilled, onRejected) {
-      var reaction = newPromiseCapability(_speciesConstructor(this, $Promise));
-      reaction.ok = typeof onFulfilled == 'function' ? onFulfilled : true;
-      reaction.fail = typeof onRejected == 'function' && onRejected;
-      reaction.domain = isNode$1 ? process$2.domain : undefined;
-      this._c.push(reaction);
-      if (this._a) this._a.push(reaction);
-      if (this._s) notify(this, false);
-      return reaction.promise;
-    },
-    // 25.4.5.1 Promise.prototype.catch(onRejected)
-    'catch': function (onRejected) {
-      return this.then(undefined, onRejected);
-    }
-  });
-  OwnPromiseCapability = function () {
-    var promise = new Internal();
-    this.promise = promise;
-    this.resolve = _ctx($resolve, promise, 1);
-    this.reject = _ctx($reject, promise, 1);
-  };
-  _newPromiseCapability.f = newPromiseCapability = function (C) {
-    return C === $Promise || C === Wrapper
-      ? new OwnPromiseCapability(C)
-      : newGenericPromiseCapability(C);
-  };
-}
-
-_export(_export.G + _export.W + _export.F * !USE_NATIVE, { Promise: $Promise });
-_setToStringTag($Promise, PROMISE);
-_setSpecies(PROMISE);
-Wrapper = _core[PROMISE];
-
-// statics
-_export(_export.S + _export.F * !USE_NATIVE, PROMISE, {
-  // 25.4.4.5 Promise.reject(r)
-  reject: function reject(r) {
-    var capability = newPromiseCapability(this);
-    var $$reject = capability.reject;
-    $$reject(r);
-    return capability.promise;
-  }
-});
-_export(_export.S + _export.F * (_library ), PROMISE, {
-  // 25.4.4.6 Promise.resolve(x)
-  resolve: function resolve(x) {
-    return _promiseResolve( this === Wrapper ? $Promise : this, x);
-  }
-});
-_export(_export.S + _export.F * !(USE_NATIVE && _iterDetect(function (iter) {
-  $Promise.all(iter)['catch'](empty);
-})), PROMISE, {
-  // 25.4.4.1 Promise.all(iterable)
-  all: function all(iterable) {
-    var C = this;
-    var capability = newPromiseCapability(C);
-    var resolve = capability.resolve;
-    var reject = capability.reject;
-    var result = _perform(function () {
-      var values = [];
-      var index = 0;
-      var remaining = 1;
-      _forOf(iterable, false, function (promise) {
-        var $index = index++;
-        var alreadyCalled = false;
-        values.push(undefined);
-        remaining++;
-        C.resolve(promise).then(function (value) {
-          if (alreadyCalled) return;
-          alreadyCalled = true;
-          values[$index] = value;
-          --remaining || resolve(values);
-        }, reject);
-      });
-      --remaining || resolve(values);
-    });
-    if (result.e) reject(result.v);
-    return capability.promise;
-  },
-  // 25.4.4.4 Promise.race(iterable)
-  race: function race(iterable) {
-    var C = this;
-    var capability = newPromiseCapability(C);
-    var reject = capability.reject;
-    var result = _perform(function () {
-      _forOf(iterable, false, function (promise) {
-        C.resolve(promise).then(capability.resolve, reject);
-      });
-    });
-    if (result.e) reject(result.v);
-    return capability.promise;
-  }
-});
-
-_export(_export.P + _export.R, 'Promise', { 'finally': function (onFinally) {
-  var C = _speciesConstructor(this, _core.Promise || _global.Promise);
-  var isFunction = typeof onFinally == 'function';
-  return this.then(
-    isFunction ? function (x) {
-      return _promiseResolve(C, onFinally()).then(function () { return x; });
-    } : onFinally,
-    isFunction ? function (e) {
-      return _promiseResolve(C, onFinally()).then(function () { throw e; });
-    } : onFinally
-  );
-} });
-
-// https://github.com/tc39/proposal-promise-try
-
-
-
-
-_export(_export.S, 'Promise', { 'try': function (callbackfn) {
-  var promiseCapability = _newPromiseCapability.f(this);
-  var result = _perform(callbackfn);
-  (result.e ? promiseCapability.reject : promiseCapability.resolve)(result.v);
-  return promiseCapability.promise;
-} });
-
-var promise = _core.Promise;
-
-var promise$1 = createCommonjsModule(function (module) {
-module.exports = { "default": promise, __esModule: true };
-});
-
-var _Promise = unwrapExports(promise$1);
+unwrapExports(iterator$1);
 
 var _meta = createCommonjsModule(function (module) {
 var META = _uid('meta');
@@ -1276,27 +939,15 @@ var _meta_3 = _meta.fastKey;
 var _meta_4 = _meta.getWeak;
 var _meta_5 = _meta.onFreeze;
 
-var f$2 = _wks;
-
-var _wksExt = {
-	f: f$2
-};
-
 var defineProperty = _objectDp.f;
 var _wksDefine = function (name) {
   var $Symbol = _core.Symbol || (_core.Symbol =  {} );
   if (name.charAt(0) != '_' && !(name in $Symbol)) defineProperty($Symbol, name, { value: _wksExt.f(name) });
 };
 
-var f$3 = Object.getOwnPropertySymbols;
+var f$4 = Object.getOwnPropertySymbols;
 
 var _objectGops = {
-	f: f$3
-};
-
-var f$4 = {}.propertyIsEnumerable;
-
-var _objectPie = {
 	f: f$4
 };
 
@@ -1358,21 +1009,6 @@ var _objectGopnExt = {
 	f: f$6
 };
 
-var gOPD = Object.getOwnPropertyDescriptor;
-
-var f$7 = _descriptors ? gOPD : function getOwnPropertyDescriptor(O, P) {
-  O = _toIobject(O);
-  P = _toPrimitive(P, true);
-  if (_ie8DomDefine) try {
-    return gOPD(O, P);
-  } catch (e) { /* empty */ }
-  if (_has(O, P)) return _propertyDesc(!_objectPie.f.call(O, P), O[P]);
-};
-
-var _objectGopd = {
-	f: f$7
-};
-
 // ECMAScript 6 symbols shim
 
 
@@ -1415,7 +1051,7 @@ var SymbolRegistry = _shared('symbol-registry');
 var AllSymbols = _shared('symbols');
 var OPSymbols = _shared('op-symbols');
 var ObjectProto$1 = Object[PROTOTYPE$2];
-var USE_NATIVE$1 = typeof $Symbol == 'function' && !!_objectGops.f;
+var USE_NATIVE = typeof $Symbol == 'function' && !!_objectGops.f;
 var QObject = _global.QObject;
 // Don't use setters in Qt Script, https://github.com/zloirock/core-js/issues/173
 var setter = !QObject || !QObject[PROTOTYPE$2] || !QObject[PROTOTYPE$2].findChild;
@@ -1438,7 +1074,7 @@ var wrap = function (tag) {
   return sym;
 };
 
-var isSymbol = USE_NATIVE$1 && typeof $Symbol.iterator == 'symbol' ? function (it) {
+var isSymbol = USE_NATIVE && typeof $Symbol.iterator == 'symbol' ? function (it) {
   return typeof it == 'symbol';
 } : function (it) {
   return it instanceof $Symbol;
@@ -1505,7 +1141,7 @@ var $getOwnPropertySymbols = function getOwnPropertySymbols(it) {
 };
 
 // 19.4.1.1 Symbol([description])
-if (!USE_NATIVE$1) {
+if (!USE_NATIVE) {
   $Symbol = function Symbol() {
     if (this instanceof $Symbol) throw TypeError('Symbol is not a constructor!');
     var tag = _uid(arguments.length > 0 ? arguments[0] : undefined);
@@ -1528,7 +1164,7 @@ if (!USE_NATIVE$1) {
   _objectGops.f = $getOwnPropertySymbols;
 
   if (_descriptors && !_library) {
-    _redefine(ObjectProto$1, 'propertyIsEnumerable', $propertyIsEnumerable);
+    _redefine(ObjectProto$1, 'propertyIsEnumerable', $propertyIsEnumerable, true);
   }
 
   _wksExt.f = function (name) {
@@ -1536,7 +1172,7 @@ if (!USE_NATIVE$1) {
   };
 }
 
-_export(_export.G + _export.W + _export.F * !USE_NATIVE$1, { Symbol: $Symbol });
+_export(_export.G + _export.W + _export.F * !USE_NATIVE, { Symbol: $Symbol });
 
 for (var es6Symbols = (
   // 19.4.2.2, 19.4.2.3, 19.4.2.4, 19.4.2.6, 19.4.2.8, 19.4.2.9, 19.4.2.10, 19.4.2.11, 19.4.2.12, 19.4.2.13, 19.4.2.14
@@ -1545,7 +1181,7 @@ for (var es6Symbols = (
 
 for (var wellKnownSymbols = _objectKeys(_wks.store), k = 0; wellKnownSymbols.length > k;) _wksDefine(wellKnownSymbols[k++]);
 
-_export(_export.S + _export.F * !USE_NATIVE$1, 'Symbol', {
+_export(_export.S + _export.F * !USE_NATIVE, 'Symbol', {
   // 19.4.2.1 Symbol.for(key)
   'for': function (key) {
     return _has(SymbolRegistry, key += '')
@@ -1561,7 +1197,7 @@ _export(_export.S + _export.F * !USE_NATIVE$1, 'Symbol', {
   useSimple: function () { setter = false; }
 });
 
-_export(_export.S + _export.F * !USE_NATIVE$1, 'Object', {
+_export(_export.S + _export.F * !USE_NATIVE, 'Object', {
   // 19.1.2.2 Object.create(O [, Properties])
   create: $create,
   // 19.1.2.4 Object.defineProperty(O, P, Attributes)
@@ -1587,7 +1223,7 @@ _export(_export.S + _export.F * FAILS_ON_PRIMITIVES, 'Object', {
 });
 
 // 24.3.2 JSON.stringify(value [, replacer [, space]])
-$JSON && _export(_export.S + _export.F * (!USE_NATIVE$1 || _fails(function () {
+$JSON && _export(_export.S + _export.F * (!USE_NATIVE || _fails(function () {
   var S = $Symbol();
   // MS Edge converts symbol values to JSON as {}
   // WebKit converts symbol values to JSON as null
@@ -1631,101 +1267,6 @@ module.exports = { "default": symbol, __esModule: true };
 
 var _Symbol = unwrapExports(symbol$1);
 
-// most Object methods by ES6 should accept primitives
-
-
-
-var _objectSap = function (KEY, exec) {
-  var fn = (_core.Object || {})[KEY] || Object[KEY];
-  var exp = {};
-  exp[KEY] = exec(fn);
-  _export(_export.S + _export.F * _fails(function () { fn(1); }), 'Object', exp);
-};
-
-// 19.1.2.9 Object.getPrototypeOf(O)
-
-
-
-_objectSap('getPrototypeOf', function () {
-  return function getPrototypeOf(it) {
-    return _objectGpo(_toObject(it));
-  };
-});
-
-var getPrototypeOf = _core.Object.getPrototypeOf;
-
-var getPrototypeOf$1 = createCommonjsModule(function (module) {
-module.exports = { "default": getPrototypeOf, __esModule: true };
-});
-
-var _Object$getPrototypeOf = unwrapExports(getPrototypeOf$1);
-
-var classCallCheck = createCommonjsModule(function (module, exports) {
-
-exports.__esModule = true;
-
-exports.default = function (instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-};
-});
-
-var _classCallCheck = unwrapExports(classCallCheck);
-
-// 19.1.2.4 / 15.2.3.6 Object.defineProperty(O, P, Attributes)
-_export(_export.S + _export.F * !_descriptors, 'Object', { defineProperty: _objectDp.f });
-
-var $Object = _core.Object;
-var defineProperty$1 = function defineProperty(it, key, desc) {
-  return $Object.defineProperty(it, key, desc);
-};
-
-var defineProperty$2 = createCommonjsModule(function (module) {
-module.exports = { "default": defineProperty$1, __esModule: true };
-});
-
-unwrapExports(defineProperty$2);
-
-var createClass = createCommonjsModule(function (module, exports) {
-
-exports.__esModule = true;
-
-
-
-var _defineProperty2 = _interopRequireDefault(defineProperty$2);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];
-      descriptor.enumerable = descriptor.enumerable || false;
-      descriptor.configurable = true;
-      if ("value" in descriptor) descriptor.writable = true;
-      (0, _defineProperty2.default)(target, descriptor.key, descriptor);
-    }
-  }
-
-  return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);
-    if (staticProps) defineProperties(Constructor, staticProps);
-    return Constructor;
-  };
-}();
-});
-
-var _createClass = unwrapExports(createClass);
-
-var iterator = _wksExt.f('iterator');
-
-var iterator$1 = createCommonjsModule(function (module) {
-module.exports = { "default": iterator, __esModule: true };
-});
-
-unwrapExports(iterator$1);
-
 var _typeof_1 = createCommonjsModule(function (module, exports) {
 
 exports.__esModule = true;
@@ -1751,391 +1292,15 @@ exports.default = typeof _symbol2.default === "function" && _typeof(_iterator2.d
 
 var _typeof = unwrapExports(_typeof_1);
 
-var possibleConstructorReturn = createCommonjsModule(function (module, exports) {
+// most Object methods by ES6 should accept primitives
 
-exports.__esModule = true;
 
 
-
-var _typeof3 = _interopRequireDefault(_typeof_1);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = function (self, call) {
-  if (!self) {
-    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-  }
-
-  return call && ((typeof call === "undefined" ? "undefined" : (0, _typeof3.default)(call)) === "object" || typeof call === "function") ? call : self;
-};
-});
-
-var _possibleConstructorReturn = unwrapExports(possibleConstructorReturn);
-
-// Works with __proto__ only. Old v8 can't work with null proto objects.
-/* eslint-disable no-proto */
-
-
-var check = function (O, proto) {
-  _anObject(O);
-  if (!_isObject(proto) && proto !== null) throw TypeError(proto + ": can't set as prototype!");
-};
-var _setProto = {
-  set: Object.setPrototypeOf || ('__proto__' in {} ? // eslint-disable-line
-    function (test, buggy, set) {
-      try {
-        set = _ctx(Function.call, _objectGopd.f(Object.prototype, '__proto__').set, 2);
-        set(test, []);
-        buggy = !(test instanceof Array);
-      } catch (e) { buggy = true; }
-      return function setPrototypeOf(O, proto) {
-        check(O, proto);
-        if (buggy) O.__proto__ = proto;
-        else set(O, proto);
-        return O;
-      };
-    }({}, false) : undefined),
-  check: check
-};
-
-// 19.1.3.19 Object.setPrototypeOf(O, proto)
-
-_export(_export.S, 'Object', { setPrototypeOf: _setProto.set });
-
-var setPrototypeOf = _core.Object.setPrototypeOf;
-
-var setPrototypeOf$1 = createCommonjsModule(function (module) {
-module.exports = { "default": setPrototypeOf, __esModule: true };
-});
-
-var _Object$setPrototypeOf = unwrapExports(setPrototypeOf$1);
-
-// 19.1.2.2 / 15.2.3.5 Object.create(O [, Properties])
-_export(_export.S, 'Object', { create: _objectCreate });
-
-var $Object$1 = _core.Object;
-var create = function create(P, D) {
-  return $Object$1.create(P, D);
-};
-
-var create$1 = createCommonjsModule(function (module) {
-module.exports = { "default": create, __esModule: true };
-});
-
-var _Object$create = unwrapExports(create$1);
-
-var inherits = createCommonjsModule(function (module, exports) {
-
-exports.__esModule = true;
-
-
-
-var _setPrototypeOf2 = _interopRequireDefault(setPrototypeOf$1);
-
-
-
-var _create2 = _interopRequireDefault(create$1);
-
-
-
-var _typeof3 = _interopRequireDefault(_typeof_1);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + (typeof superClass === "undefined" ? "undefined" : (0, _typeof3.default)(superClass)));
-  }
-
-  subClass.prototype = (0, _create2.default)(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) _setPrototypeOf2.default ? (0, _setPrototypeOf2.default)(subClass, superClass) : subClass.__proto__ = superClass;
-};
-});
-
-var _inherits = unwrapExports(inherits);
-
-// 19.1.2.1 Object.assign(target, source, ...)
-
-
-
-
-
-
-var $assign = Object.assign;
-
-// should work with symbols and should have deterministic property order (V8 bug)
-var _objectAssign = !$assign || _fails(function () {
-  var A = {};
-  var B = {};
-  // eslint-disable-next-line no-undef
-  var S = Symbol();
-  var K = 'abcdefghijklmnopqrst';
-  A[S] = 7;
-  K.split('').forEach(function (k) { B[k] = k; });
-  return $assign({}, A)[S] != 7 || Object.keys($assign({}, B)).join('') != K;
-}) ? function assign(target, source) { // eslint-disable-line no-unused-vars
-  var T = _toObject(target);
-  var aLen = arguments.length;
-  var index = 1;
-  var getSymbols = _objectGops.f;
-  var isEnum = _objectPie.f;
-  while (aLen > index) {
-    var S = _iobject(arguments[index++]);
-    var keys = getSymbols ? _objectKeys(S).concat(getSymbols(S)) : _objectKeys(S);
-    var length = keys.length;
-    var j = 0;
-    var key;
-    while (length > j) {
-      key = keys[j++];
-      if (!_descriptors || isEnum.call(S, key)) T[key] = S[key];
-    }
-  } return T;
-} : $assign;
-
-// 19.1.3.1 Object.assign(target, source)
-
-
-_export(_export.S + _export.F, 'Object', { assign: _objectAssign });
-
-var assign = _core.Object.assign;
-
-var assign$1 = createCommonjsModule(function (module) {
-module.exports = { "default": assign, __esModule: true };
-});
-
-var _Object$assign = unwrapExports(assign$1);
-
-var global$1 = (typeof global !== "undefined" ? global :
-            typeof self !== "undefined" ? self :
-            typeof window !== "undefined" ? window : {});
-
-// shim for using process in browser
-// based off https://github.com/defunctzombie/node-process/blob/master/browser.js
-
-function defaultSetTimout() {
-    throw new Error('setTimeout has not been defined');
-}
-function defaultClearTimeout () {
-    throw new Error('clearTimeout has not been defined');
-}
-var cachedSetTimeout = defaultSetTimout;
-var cachedClearTimeout = defaultClearTimeout;
-if (typeof global$1.setTimeout === 'function') {
-    cachedSetTimeout = setTimeout;
-}
-if (typeof global$1.clearTimeout === 'function') {
-    cachedClearTimeout = clearTimeout;
-}
-
-function runTimeout(fun) {
-    if (cachedSetTimeout === setTimeout) {
-        //normal enviroments in sane situations
-        return setTimeout(fun, 0);
-    }
-    // if setTimeout wasn't available but was latter defined
-    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
-        cachedSetTimeout = setTimeout;
-        return setTimeout(fun, 0);
-    }
-    try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
-        return cachedSetTimeout(fun, 0);
-    } catch(e){
-        try {
-            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
-            return cachedSetTimeout.call(null, fun, 0);
-        } catch(e){
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
-            return cachedSetTimeout.call(this, fun, 0);
-        }
-    }
-
-
-}
-function runClearTimeout(marker) {
-    if (cachedClearTimeout === clearTimeout) {
-        //normal enviroments in sane situations
-        return clearTimeout(marker);
-    }
-    // if clearTimeout wasn't available but was latter defined
-    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
-        cachedClearTimeout = clearTimeout;
-        return clearTimeout(marker);
-    }
-    try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
-        return cachedClearTimeout(marker);
-    } catch (e){
-        try {
-            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
-            return cachedClearTimeout.call(null, marker);
-        } catch (e){
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
-            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
-            return cachedClearTimeout.call(this, marker);
-        }
-    }
-
-
-
-}
-var queue$1 = [];
-var draining = false;
-var currentQueue;
-var queueIndex = -1;
-
-function cleanUpNextTick() {
-    if (!draining || !currentQueue) {
-        return;
-    }
-    draining = false;
-    if (currentQueue.length) {
-        queue$1 = currentQueue.concat(queue$1);
-    } else {
-        queueIndex = -1;
-    }
-    if (queue$1.length) {
-        drainQueue();
-    }
-}
-
-function drainQueue() {
-    if (draining) {
-        return;
-    }
-    var timeout = runTimeout(cleanUpNextTick);
-    draining = true;
-
-    var len = queue$1.length;
-    while(len) {
-        currentQueue = queue$1;
-        queue$1 = [];
-        while (++queueIndex < len) {
-            if (currentQueue) {
-                currentQueue[queueIndex].run();
-            }
-        }
-        queueIndex = -1;
-        len = queue$1.length;
-    }
-    currentQueue = null;
-    draining = false;
-    runClearTimeout(timeout);
-}
-function nextTick(fun) {
-    var args = new Array(arguments.length - 1);
-    if (arguments.length > 1) {
-        for (var i = 1; i < arguments.length; i++) {
-            args[i - 1] = arguments[i];
-        }
-    }
-    queue$1.push(new Item(fun, args));
-    if (queue$1.length === 1 && !draining) {
-        runTimeout(drainQueue);
-    }
-}
-// v8 likes predictible objects
-function Item(fun, array) {
-    this.fun = fun;
-    this.array = array;
-}
-Item.prototype.run = function () {
-    this.fun.apply(null, this.array);
-};
-var title = 'browser';
-var platform = 'browser';
-var browser = true;
-var env = {};
-var argv = [];
-var version = ''; // empty string to avoid regexp issues
-var versions$1 = {};
-var release = {};
-var config = {};
-
-function noop() {}
-
-var on = noop;
-var addListener = noop;
-var once = noop;
-var off = noop;
-var removeListener = noop;
-var removeAllListeners = noop;
-var emit = noop;
-
-function binding(name) {
-    throw new Error('process.binding is not supported');
-}
-
-function cwd () { return '/' }
-function chdir (dir) {
-    throw new Error('process.chdir is not supported');
-}function umask() { return 0; }
-
-// from https://github.com/kumavis/browser-process-hrtime/blob/master/index.js
-var performance = global$1.performance || {};
-var performanceNow =
-  performance.now        ||
-  performance.mozNow     ||
-  performance.msNow      ||
-  performance.oNow       ||
-  performance.webkitNow  ||
-  function(){ return (new Date()).getTime() };
-
-// generate timestamp or delta
-// see http://nodejs.org/api/process.html#process_process_hrtime
-function hrtime(previousTimestamp){
-  var clocktime = performanceNow.call(performance)*1e-3;
-  var seconds = Math.floor(clocktime);
-  var nanoseconds = Math.floor((clocktime%1)*1e9);
-  if (previousTimestamp) {
-    seconds = seconds - previousTimestamp[0];
-    nanoseconds = nanoseconds - previousTimestamp[1];
-    if (nanoseconds<0) {
-      seconds--;
-      nanoseconds += 1e9;
-    }
-  }
-  return [seconds,nanoseconds]
-}
-
-var startTime = new Date();
-function uptime() {
-  var currentTime = new Date();
-  var dif = currentTime - startTime;
-  return dif / 1000;
-}
-
-var process$3 = {
-  nextTick: nextTick,
-  title: title,
-  browser: browser,
-  env: env,
-  argv: argv,
-  version: version,
-  versions: versions$1,
-  on: on,
-  addListener: addListener,
-  once: once,
-  off: off,
-  removeListener: removeListener,
-  removeAllListeners: removeAllListeners,
-  emit: emit,
-  binding: binding,
-  cwd: cwd,
-  chdir: chdir,
-  umask: umask,
-  hrtime: hrtime,
-  platform: platform,
-  release: release,
-  config: config,
-  uptime: uptime
+var _objectSap = function (KEY, exec) {
+  var fn = (_core.Object || {})[KEY] || Object[KEY];
+  var exp = {};
+  exp[KEY] = exec(fn);
+  _export(_export.S + _export.F * _fails(function () { fn(1); }), 'Object', exp);
 };
 
 // 19.1.2.14 Object.keys(O)
@@ -2161,11 +1326,11 @@ var NOW;
 // In node.js, use process.hrtime.
 // eslint-disable-next-line
 // @ts-ignore
-if (typeof self === 'undefined' && typeof process$3 !== 'undefined' && process$3.hrtime) {
+if (typeof self === 'undefined' && typeof process !== 'undefined' && process.hrtime) {
     NOW = function NOW() {
         // eslint-disable-next-line
         // @ts-ignore
-        var time = process$3.hrtime();
+        var time = process.hrtime();
         // Convert [seconds, nanoseconds] to milliseconds.
         return time[0] * 1000 + time[1] / 1000000;
     };
@@ -2973,6 +2138,191 @@ var Main = /** @class */function (_super) {
 }(Group);
 var TWEEN = new Main();
 
+// 19.1.2.9 Object.getPrototypeOf(O)
+
+
+
+_objectSap('getPrototypeOf', function () {
+  return function getPrototypeOf(it) {
+    return _objectGpo(_toObject(it));
+  };
+});
+
+var getPrototypeOf = _core.Object.getPrototypeOf;
+
+var getPrototypeOf$1 = createCommonjsModule(function (module) {
+module.exports = { "default": getPrototypeOf, __esModule: true };
+});
+
+var _Object$getPrototypeOf = unwrapExports(getPrototypeOf$1);
+
+var classCallCheck = createCommonjsModule(function (module, exports) {
+
+exports.__esModule = true;
+
+exports.default = function (instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+};
+});
+
+var _classCallCheck = unwrapExports(classCallCheck);
+
+// 19.1.2.4 / 15.2.3.6 Object.defineProperty(O, P, Attributes)
+_export(_export.S + _export.F * !_descriptors, 'Object', { defineProperty: _objectDp.f });
+
+var $Object$1 = _core.Object;
+var defineProperty$1 = function defineProperty(it, key, desc) {
+  return $Object$1.defineProperty(it, key, desc);
+};
+
+var defineProperty$2 = createCommonjsModule(function (module) {
+module.exports = { "default": defineProperty$1, __esModule: true };
+});
+
+unwrapExports(defineProperty$2);
+
+var createClass = createCommonjsModule(function (module, exports) {
+
+exports.__esModule = true;
+
+
+
+var _defineProperty2 = _interopRequireDefault(defineProperty$2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = function () {
+  function defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];
+      descriptor.enumerable = descriptor.enumerable || false;
+      descriptor.configurable = true;
+      if ("value" in descriptor) descriptor.writable = true;
+      (0, _defineProperty2.default)(target, descriptor.key, descriptor);
+    }
+  }
+
+  return function (Constructor, protoProps, staticProps) {
+    if (protoProps) defineProperties(Constructor.prototype, protoProps);
+    if (staticProps) defineProperties(Constructor, staticProps);
+    return Constructor;
+  };
+}();
+});
+
+var _createClass = unwrapExports(createClass);
+
+var possibleConstructorReturn = createCommonjsModule(function (module, exports) {
+
+exports.__esModule = true;
+
+
+
+var _typeof3 = _interopRequireDefault(_typeof_1);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = function (self, call) {
+  if (!self) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+
+  return call && ((typeof call === "undefined" ? "undefined" : (0, _typeof3.default)(call)) === "object" || typeof call === "function") ? call : self;
+};
+});
+
+var _possibleConstructorReturn = unwrapExports(possibleConstructorReturn);
+
+var inherits = createCommonjsModule(function (module, exports) {
+
+exports.__esModule = true;
+
+
+
+var _setPrototypeOf2 = _interopRequireDefault(setPrototypeOf$1);
+
+
+
+var _create2 = _interopRequireDefault(create$1);
+
+
+
+var _typeof3 = _interopRequireDefault(_typeof_1);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = function (subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + (typeof superClass === "undefined" ? "undefined" : (0, _typeof3.default)(superClass)));
+  }
+
+  subClass.prototype = (0, _create2.default)(superClass && superClass.prototype, {
+    constructor: {
+      value: subClass,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (superClass) _setPrototypeOf2.default ? (0, _setPrototypeOf2.default)(subClass, superClass) : subClass.__proto__ = superClass;
+};
+});
+
+var _inherits = unwrapExports(inherits);
+
+// 19.1.2.1 Object.assign(target, source, ...)
+
+
+
+
+
+
+var $assign = Object.assign;
+
+// should work with symbols and should have deterministic property order (V8 bug)
+var _objectAssign = !$assign || _fails(function () {
+  var A = {};
+  var B = {};
+  // eslint-disable-next-line no-undef
+  var S = Symbol();
+  var K = 'abcdefghijklmnopqrst';
+  A[S] = 7;
+  K.split('').forEach(function (k) { B[k] = k; });
+  return $assign({}, A)[S] != 7 || Object.keys($assign({}, B)).join('') != K;
+}) ? function assign(target, source) { // eslint-disable-line no-unused-vars
+  var T = _toObject(target);
+  var aLen = arguments.length;
+  var index = 1;
+  var getSymbols = _objectGops.f;
+  var isEnum = _objectPie.f;
+  while (aLen > index) {
+    var S = _iobject(arguments[index++]);
+    var keys = getSymbols ? _objectKeys(S).concat(getSymbols(S)) : _objectKeys(S);
+    var length = keys.length;
+    var j = 0;
+    var key;
+    while (length > j) {
+      key = keys[j++];
+      if (!_descriptors || isEnum.call(S, key)) T[key] = S[key];
+    }
+  } return T;
+} : $assign;
+
+// 19.1.3.1 Object.assign(target, source)
+
+
+_export(_export.S + _export.F, 'Object', { assign: _objectAssign });
+
+var assign = _core.Object.assign;
+
+var assign$1 = createCommonjsModule(function (module) {
+module.exports = { "default": assign, __esModule: true };
+});
+
+var _Object$assign = unwrapExports(assign$1);
+
 function EventDispatcher() {}
 
 _Object$assign(EventDispatcher.prototype, {
@@ -3038,457 +2388,694 @@ var COMPLETE = "complete";
 var PAUSE = "pause";
 var RESUME = "resume";
 
-var TimeLine = function (_EventDispatcher) {
-    _inherits(TimeLine, _EventDispatcher);
+// getting tag from 19.1.3.6 Object.prototype.toString()
 
-    function TimeLine() {
-        _classCallCheck(this, TimeLine);
+var TAG$1 = _wks('toStringTag');
+// ES3 wrong here
+var ARG = _cof(function () { return arguments; }()) == 'Arguments';
 
-        var _this = _possibleConstructorReturn(this, (TimeLine.__proto__ || _Object$getPrototypeOf(TimeLine)).call(this));
-
-        _this._segments = [];
-        _this._currentArrange;
-        _this._isPlaying = false;
-        _this._isPaused = false;
-        _this._repeat = 1;
-
-        _this._arrangements = [];
-        return _this;
-    }
-
-    _createClass(TimeLine, [{
-        key: "addSegment",
-        value: function addSegment() {
-            var _segments;
-
-            for (var _len = arguments.length, segments = Array(_len), _key = 0; _key < _len; _key++) {
-                segments[_key] = arguments[_key];
-            }
-
-            segments.forEach(function (segment) {
-                if (!(segment instanceof Segment)) throw new Error("not instanceof Segment!");
-            });
-            (_segments = this._segments).push.apply(_segments, segments);
-        }
-    }, {
-        key: "pushForwardArrange",
-        value: function pushForwardArrange() {
-            var arrange = new Arrange(this._segments);
-            arrange.forward();
-            this._arrangements.push(arrange);
-            return arrange;
-        }
-    }, {
-        key: "pushBackArrange",
-        value: function pushBackArrange() {
-            var arrange = new Arrange(this._segments);
-            arrange.back();
-            this._arrangements.push(arrange);
-            return arrange;
-        }
-    }, {
-        key: "getArrangements",
-        value: function getArrangements() {
-            return this._arrangements;
-        }
-    }, {
-        key: "clearArrangements",
-        value: function clearArrangements() {
-            this._arrangements = [];
-        }
-    }, {
-        key: "start",
-        value: function start() {
-            var _this2 = this;
-
-            if (this._isPlaying) {
-                return false;
-            }
-            this._isPlaying = true;
-
-            var length = this._arrangements.length;
-            //如果没有追加排列那么默认正序排列
-            if (length === 0) {
-                this.pushForwardArrange();
-                length = 1;
-            }
-
-            var _loop = function _loop(i) {
-                var currentArrange = _this2._arrangements[i];
-                var nextArrange = _this2._arrangements[i + 1];
-                if (currentArrange instanceof Arrange && nextArrange instanceof Arrange) {
-                    currentArrange.chain(nextArrange);
-                }
-                currentArrange.addEventListener(START, function () {
-                    _this2._currentArrange = currentArrange;
-                });
-            };
-
-            for (var i = 0; i < length; i++) {
-                _loop(i);
-            }
-
-            var startArrange = this._arrangements[0];
-            var endArrange = this._arrangements[length - 1];
-
-            //已经循环的次数
-            var repeat = 0;
-            var endArrangeEventListenerFn = function endArrangeEventListenerFn() {
-                repeat++;
-                //如果完成规定次数则停止
-                if (repeat >= _this2._repeat || !_this2._isPlaying) {
-                    _this2._isPlaying = false;
-                    //并且移除该事件
-                    endArrange.removeEventListener(FINISH, endArrangeEventListenerFn);
-                    _this2.dispatchEvent({ type: FINISH });
-                    //否则再次重头开始
-                } else {
-                    startArrange.start();
-                }
-            };
-            endArrange.addEventListener(FINISH, endArrangeEventListenerFn);
-
-            startArrange.start();
-            this.dispatchEvent({ type: START });
-        }
-    }, {
-        key: "pushBack",
-        value: function pushBack() {}
-    }, {
-        key: "pushReverse",
-        value: function pushReverse() {}
-    }, {
-        key: "repeat",
-        value: function repeat(_repeat) {
-            if (typeof _repeat !== "number" || _repeat <= 0) throw new Error("Invalid repeat!");
-            this._repeat = _repeat;
-        }
-    }, {
-        key: "loop",
-        value: function loop() {
-            this._repeat = Infinity;
-        }
-    }, {
-        key: "stop",
-        value: function stop() {
-            if (!this._isPlaying) {
-                return false;
-            }
-            this._isPlaying = false;
-
-            if (this._currentArrange instanceof Arrange) {
-                this._currentArrange.stop();
-                this.dispatchEvent({ type: STOP });
-            }
-        }
-    }, {
-        key: "pause",
-        value: function pause() {
-            if (!this._isPlaying || this._isPaused) {
-                return false;
-            }
-            this._isPaused = true;
-            if (this._currentArrange instanceof Arrange) {
-                this._currentArrange.pause();
-                this.dispatchEvent({ type: PAUSE });
-            }
-        }
-    }, {
-        key: "resume",
-        value: function resume() {
-            if (!this._isPlaying || !this._isPaused) {
-                return false;
-            }
-            this._isPaused = false;
-            if (this._currentArrange instanceof Arrange) {
-                this._currentArrange.resume();
-                this.dispatchEvent({ type: RESUME });
-            }
-        }
-    }]);
-
-    return TimeLine;
-}(EventDispatcher);
-
-
-TimeLine.update = function () {
-    TWEEN.update();
-};
-TimeLine.Easing = TWEEN.Easing;
-
-var Arrange = function (_EventDispatcher2) {
-    _inherits(Arrange, _EventDispatcher2);
-
-    function Arrange(segments) {
-        _classCallCheck(this, Arrange);
-
-        var _this3 = _possibleConstructorReturn(this, (Arrange.__proto__ || _Object$getPrototypeOf(Arrange)).call(this));
-
-        _this3._segments = segments;
-        _this3._type = "forward";
-
-        _this3._isPlaying = false;
-        _this3._isPaused = false;
-
-        //监听片段执行开始时回调
-        var length = _this3._segments.length;
-
-        var _loop2 = function _loop2(i) {
-            var currentSegment = _this3._segments[i];
-
-            currentSegment.addEventListener(START, function () {
-                //如果排序处于停止状态则取消监听
-                if (!_this3._isPlaying) return;
-                _this3._currentSegment = currentSegment;
-            });
-        };
-
-        for (var i = 0; i < length; i++) {
-            _loop2(i);
-        }
-        return _this3;
-    }
-
-    // disable() {
-    //     this._enabled = false;
-    // }
-    // enable() {
-    //     this._enabled = true;
-    // }
-
-    _createClass(Arrange, [{
-        key: "start",
-        value: function start() {
-            var _this4 = this;
-
-            if (this._isPlaying) {
-                return false;
-            }
-            this._isPlaying = true;
-
-            // let enabled = this._enabled;
-            // this.enable();
-
-            if (!arrangeMode.hasOwnProperty(this._type)) {
-                this._isPlaying = false;
-                // this._enabled = enabled;
-                throw new Error("not set arrange type!");
-            }
-
-            //开始之前先重新链接，并定义开始片段，结束片段
-            arrangeMode[this._type].call(this);
-
-            if (!(this._startSegment instanceof Segment) || !(typeof this._firstSegmentStart !== "function")) {
-                this._isPlaying = false;
-                // this._enabled = enabled;
-                throw new Error("first segment not instanceof Segment!");
-            }
-
-            /*结束*/
-            //如果存在未完成的结束事件回调则先移除
-            if (this._endSegment.hasEventListener(FINISH, this._endSegmentFinishCallback)) {
-                this._endSegment.removeEventListener(FINISH, this._endSegmentFinishCallback);
-            }
-            //结束事件回调
-            this._endSegmentFinishCallback = function (_ref) {
-                var transactions = _ref.transactions;
-
-                //如果排序处于状态则取消监听
-                if (!_this4._isPlaying) return;
-                _this4._isPlaying = false;
-
-                //完成后移除回调
-                _this4._endSegment.removeEventListener(FINISH, _this4._endSegmentFinishCallback);
-                _this4._endSegmentFinishCallback = undefined;
-
-                _this4.dispatchEvent({ type: FINISH });
-
-                var result = transactions.map(function (_ref2) {
-                    var finishType = _ref2.finishType;
-                    return finishType;
-                });
-                //如果有定义下一个衔接的片段，并且没有全部停止，接衔接
-                if (typeof _this4._nextArrangeStrat === "function" && result.includes("complete")) {
-                    _this4._nextArrangeStrat();
-                }
-
-                // this.disable();
-            };
-
-            this._endSegment.addEventListener(FINISH, this._endSegmentFinishCallback);
-
-            /*完整的结束*/
-            //如果存在未完成的完整结束事件回调则先移除
-            if (this._endSegment.hasEventListener(COMPLETE, this._endSegmentCompleteCallback)) {
-                this._endSegment.removeEventListener(COMPLETE, this._endSegmentCompleteCallback);
-            }
-            this._endSegmentCompleteCallback = function (event) {
-                //如果事件监听处于关闭状态则取消监听
-                if (!_this4._isPlaying) return;
-
-                //完成后移除回调
-                _this4._endSegment.removeEventListener(COMPLETE, _this4._endSegmentCompleteCallback);
-                _this4._endSegmentCompleteCallback = undefined;
-
-                _this4.dispatchEvent({ type: COMPLETE });
-            };
-            this._endSegment.addEventListener(COMPLETE, this._endSegmentCompleteCallback);
-
-            this._startSegmentStart();
-            this.dispatchEvent({ type: START });
-        }
-    }, {
-        key: "stop",
-        value: function stop() {
-            if (!this._isPlaying) {
-                return false;
-            }
-            this._isPlaying = false;
-
-            if (this._currentSegment instanceof Segment) {
-                this._currentSegment.stop();
-                this.dispatchEvent({ type: STOP });
-                //如果当前片段不是最后一个片段，则手动触发结束事件
-                if (this._currentSegment !== this._endSegment) {
-                    this.dispatchEvent({ type: FINISH });
-                }
-            }
-        }
-    }, {
-        key: "pause",
-        value: function pause() {
-            if (!this._isPlaying || this._isPaused) {
-                return false;
-            }
-            this._isPaused = true;
-            if (this._currentSegment instanceof Segment) {
-                this._currentSegment.pause();
-                this.dispatchEvent({ type: PAUSE });
-            }
-        }
-    }, {
-        key: "resume",
-        value: function resume() {
-            if (!this._isPlaying || !this._isPaused) {
-                return false;
-            }
-            this._isPaused = false;
-            if (this._currentSegment instanceof Segment) {
-                this._currentSegment.resume();
-                this.dispatchEvent({ type: RESUME });
-            }
-        }
-    }, {
-        key: "chain",
-        value: function chain(nextArrange) {
-            if (nextArrange instanceof Arrange) {
-                this._nextArrangeStrat = nextArrange.start.bind(nextArrange);
-            }
-        }
-    }, {
-        key: "removeChain",
-        value: function removeChain() {
-            delete this._nextArrangeStrat;
-        }
-    }, {
-        key: "forward",
-        value: function forward() {
-            this._type = "forward";
-        }
-    }, {
-        key: "back",
-        value: function back() {
-            this._type = "back";
-        }
-    }]);
-
-    return Arrange;
-}(EventDispatcher);
-
-var arrangeMode = {
-    discrete: function discrete() {
-        var length = this._segments.length;
-        for (var i = 0; i < length; i++) {
-            this._segments[i].removeChain();
-        }
-    },
-    forward: function forward() {
-        arrangeMode.discrete.call(this);
-        var length = this._segments.length;
-        for (var i = 0; i < length; i++) {
-            var _currentSegment = this._segments[i];
-            var nextSegment = this._segments[i + 1];
-
-            //只有当前片段和下一片段都存在的情况才能使用chain
-            if (_currentSegment instanceof Segment && nextSegment instanceof Segment) {
-                _currentSegment.chain(nextSegment);
-            }
-        }
-
-        this._startSegment = this._segments[0];
-        this._startSegmentStart = this._startSegment.start.bind(this._startSegment);
-
-        this._endSegment = this._segments[length - 1];
-    },
-    back: function back() {
-        arrangeMode.discrete.call(this);
-        var length = this._segments.length;
-        this._endSegment = this._segments[0];
-        for (var i = length - 1; i >= 0; i--) {
-            var _currentSegment2 = this._segments[i];
-            var nextSegment = this._segments[i - 1];
-
-            //只有当前片段和下一片段都存在的情况才能使用chain
-            if (_currentSegment2 instanceof Segment && nextSegment instanceof Segment) {
-                _currentSegment2.chain(nextSegment, true);
-            }
-        }
-        this._startSegment = this._segments[length - 1];
-        this._startSegmentStart = this._startSegment.playback.bind(this._startSegment);
-        this._endSegment = this._segments[0];
-    }
+// fallback for IE11 Script Access Denied error
+var tryGet = function (it, key) {
+  try {
+    return it[key];
+  } catch (e) { /* empty */ }
 };
 
-TimeLine.Arrange = Arrange;
+var _classof = function (it) {
+  var O, T, B;
+  return it === undefined ? 'Undefined' : it === null ? 'Null'
+    // @@toStringTag case
+    : typeof (T = tryGet(O = Object(it), TAG$1)) == 'string' ? T
+    // builtinTag case
+    : ARG ? _cof(O)
+    // ES3 arguments fallback
+    : (B = _cof(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : B;
+};
+
+var _anInstance = function (it, Constructor, name, forbiddenField) {
+  if (!(it instanceof Constructor) || (forbiddenField !== undefined && forbiddenField in it)) {
+    throw TypeError(name + ': incorrect invocation!');
+  } return it;
+};
+
+// call something on iterator step with safe closing on error
+
+var _iterCall = function (iterator, fn, value, entries) {
+  try {
+    return entries ? fn(_anObject(value)[0], value[1]) : fn(value);
+  // 7.4.6 IteratorClose(iterator, completion)
+  } catch (e) {
+    var ret = iterator['return'];
+    if (ret !== undefined) _anObject(ret.call(iterator));
+    throw e;
+  }
+};
+
+// check on default Array iterator
+
+var ITERATOR$1 = _wks('iterator');
+var ArrayProto = Array.prototype;
+
+var _isArrayIter = function (it) {
+  return it !== undefined && (_iterators.Array === it || ArrayProto[ITERATOR$1] === it);
+};
+
+var ITERATOR$2 = _wks('iterator');
+
+var core_getIteratorMethod = _core.getIteratorMethod = function (it) {
+  if (it != undefined) return it[ITERATOR$2]
+    || it['@@iterator']
+    || _iterators[_classof(it)];
+};
+
+var _forOf = createCommonjsModule(function (module) {
+var BREAK = {};
+var RETURN = {};
+var exports = module.exports = function (iterable, entries, fn, that, ITERATOR) {
+  var iterFn = ITERATOR ? function () { return iterable; } : core_getIteratorMethod(iterable);
+  var f = _ctx(fn, that, entries ? 2 : 1);
+  var index = 0;
+  var length, step, iterator, result;
+  if (typeof iterFn != 'function') throw TypeError(iterable + ' is not iterable!');
+  // fast case for arrays with default iterator
+  if (_isArrayIter(iterFn)) for (length = _toLength(iterable.length); length > index; index++) {
+    result = entries ? f(_anObject(step = iterable[index])[0], step[1]) : f(iterable[index]);
+    if (result === BREAK || result === RETURN) return result;
+  } else for (iterator = iterFn.call(iterable); !(step = iterator.next()).done;) {
+    result = _iterCall(iterator, f, step.value, entries);
+    if (result === BREAK || result === RETURN) return result;
+  }
+};
+exports.BREAK = BREAK;
+exports.RETURN = RETURN;
+});
+
+// 7.3.20 SpeciesConstructor(O, defaultConstructor)
+
+
+var SPECIES = _wks('species');
+var _speciesConstructor = function (O, D) {
+  var C = _anObject(O).constructor;
+  var S;
+  return C === undefined || (S = _anObject(C)[SPECIES]) == undefined ? D : _aFunction(S);
+};
+
+// fast apply, http://jsperf.lnkit.com/fast-apply/5
+var _invoke = function (fn, args, that) {
+  var un = that === undefined;
+  switch (args.length) {
+    case 0: return un ? fn()
+                      : fn.call(that);
+    case 1: return un ? fn(args[0])
+                      : fn.call(that, args[0]);
+    case 2: return un ? fn(args[0], args[1])
+                      : fn.call(that, args[0], args[1]);
+    case 3: return un ? fn(args[0], args[1], args[2])
+                      : fn.call(that, args[0], args[1], args[2]);
+    case 4: return un ? fn(args[0], args[1], args[2], args[3])
+                      : fn.call(that, args[0], args[1], args[2], args[3]);
+  } return fn.apply(that, args);
+};
+
+var process$1 = _global.process;
+var setTask = _global.setImmediate;
+var clearTask = _global.clearImmediate;
+var MessageChannel = _global.MessageChannel;
+var Dispatch = _global.Dispatch;
+var counter = 0;
+var queue$1 = {};
+var ONREADYSTATECHANGE = 'onreadystatechange';
+var defer, channel, port;
+var run = function () {
+  var id = +this;
+  // eslint-disable-next-line no-prototype-builtins
+  if (queue$1.hasOwnProperty(id)) {
+    var fn = queue$1[id];
+    delete queue$1[id];
+    fn();
+  }
+};
+var listener = function (event) {
+  run.call(event.data);
+};
+// Node.js 0.9+ & IE10+ has setImmediate, otherwise:
+if (!setTask || !clearTask) {
+  setTask = function setImmediate(fn) {
+    var args = [];
+    var i = 1;
+    while (arguments.length > i) args.push(arguments[i++]);
+    queue$1[++counter] = function () {
+      // eslint-disable-next-line no-new-func
+      _invoke(typeof fn == 'function' ? fn : Function(fn), args);
+    };
+    defer(counter);
+    return counter;
+  };
+  clearTask = function clearImmediate(id) {
+    delete queue$1[id];
+  };
+  // Node.js 0.8-
+  if (_cof(process$1) == 'process') {
+    defer = function (id) {
+      process$1.nextTick(_ctx(run, id, 1));
+    };
+  // Sphere (JS game engine) Dispatch API
+  } else if (Dispatch && Dispatch.now) {
+    defer = function (id) {
+      Dispatch.now(_ctx(run, id, 1));
+    };
+  // Browsers with MessageChannel, includes WebWorkers
+  } else if (MessageChannel) {
+    channel = new MessageChannel();
+    port = channel.port2;
+    channel.port1.onmessage = listener;
+    defer = _ctx(port.postMessage, port, 1);
+  // Browsers with postMessage, skip WebWorkers
+  // IE8 has postMessage, but it's sync & typeof its postMessage is 'object'
+  } else if (_global.addEventListener && typeof postMessage == 'function' && !_global.importScripts) {
+    defer = function (id) {
+      _global.postMessage(id + '', '*');
+    };
+    _global.addEventListener('message', listener, false);
+  // IE8-
+  } else if (ONREADYSTATECHANGE in _domCreate('script')) {
+    defer = function (id) {
+      _html.appendChild(_domCreate('script'))[ONREADYSTATECHANGE] = function () {
+        _html.removeChild(this);
+        run.call(id);
+      };
+    };
+  // Rest old browsers
+  } else {
+    defer = function (id) {
+      setTimeout(_ctx(run, id, 1), 0);
+    };
+  }
+}
+var _task = {
+  set: setTask,
+  clear: clearTask
+};
+
+var macrotask = _task.set;
+var Observer = _global.MutationObserver || _global.WebKitMutationObserver;
+var process$2 = _global.process;
+var Promise = _global.Promise;
+var isNode = _cof(process$2) == 'process';
+
+var _microtask = function () {
+  var head, last, notify;
+
+  var flush = function () {
+    var parent, fn;
+    if (isNode && (parent = process$2.domain)) parent.exit();
+    while (head) {
+      fn = head.fn;
+      head = head.next;
+      try {
+        fn();
+      } catch (e) {
+        if (head) notify();
+        else last = undefined;
+        throw e;
+      }
+    } last = undefined;
+    if (parent) parent.enter();
+  };
+
+  // Node.js
+  if (isNode) {
+    notify = function () {
+      process$2.nextTick(flush);
+    };
+  // browsers with MutationObserver, except iOS Safari - https://github.com/zloirock/core-js/issues/339
+  } else if (Observer && !(_global.navigator && _global.navigator.standalone)) {
+    var toggle = true;
+    var node = document.createTextNode('');
+    new Observer(flush).observe(node, { characterData: true }); // eslint-disable-line no-new
+    notify = function () {
+      node.data = toggle = !toggle;
+    };
+  // environments with maybe non-completely correct, but existent Promise
+  } else if (Promise && Promise.resolve) {
+    // Promise.resolve without an argument throws an error in LG WebOS 2
+    var promise = Promise.resolve(undefined);
+    notify = function () {
+      promise.then(flush);
+    };
+  // for other environments - macrotask based on:
+  // - setImmediate
+  // - MessageChannel
+  // - window.postMessag
+  // - onreadystatechange
+  // - setTimeout
+  } else {
+    notify = function () {
+      // strange IE + webpack dev server bug - use .call(global)
+      macrotask.call(_global, flush);
+    };
+  }
+
+  return function (fn) {
+    var task = { fn: fn, next: undefined };
+    if (last) last.next = task;
+    if (!head) {
+      head = task;
+      notify();
+    } last = task;
+  };
+};
+
+// 25.4.1.5 NewPromiseCapability(C)
+
+
+function PromiseCapability(C) {
+  var resolve, reject;
+  this.promise = new C(function ($$resolve, $$reject) {
+    if (resolve !== undefined || reject !== undefined) throw TypeError('Bad Promise constructor');
+    resolve = $$resolve;
+    reject = $$reject;
+  });
+  this.resolve = _aFunction(resolve);
+  this.reject = _aFunction(reject);
+}
+
+var f$7 = function (C) {
+  return new PromiseCapability(C);
+};
+
+var _newPromiseCapability = {
+	f: f$7
+};
+
+var _perform = function (exec) {
+  try {
+    return { e: false, v: exec() };
+  } catch (e) {
+    return { e: true, v: e };
+  }
+};
+
+var navigator = _global.navigator;
+
+var _userAgent = navigator && navigator.userAgent || '';
+
+var _promiseResolve = function (C, x) {
+  _anObject(C);
+  if (_isObject(x) && x.constructor === C) return x;
+  var promiseCapability = _newPromiseCapability.f(C);
+  var resolve = promiseCapability.resolve;
+  resolve(x);
+  return promiseCapability.promise;
+};
+
+var _redefineAll = function (target, src, safe) {
+  for (var key in src) {
+    if (safe && target[key]) target[key] = src[key];
+    else _hide(target, key, src[key]);
+  } return target;
+};
+
+var SPECIES$1 = _wks('species');
+
+var _setSpecies = function (KEY) {
+  var C = typeof _core[KEY] == 'function' ? _core[KEY] : _global[KEY];
+  if (_descriptors && C && !C[SPECIES$1]) _objectDp.f(C, SPECIES$1, {
+    configurable: true,
+    get: function () { return this; }
+  });
+};
+
+var ITERATOR$3 = _wks('iterator');
+var SAFE_CLOSING = false;
+
+try {
+  var riter = [7][ITERATOR$3]();
+  riter['return'] = function () { SAFE_CLOSING = true; };
+  // eslint-disable-next-line no-throw-literal
+  Array.from(riter, function () { throw 2; });
+} catch (e) { /* empty */ }
+
+var _iterDetect = function (exec, skipClosing) {
+  if (!skipClosing && !SAFE_CLOSING) return false;
+  var safe = false;
+  try {
+    var arr = [7];
+    var iter = arr[ITERATOR$3]();
+    iter.next = function () { return { done: safe = true }; };
+    arr[ITERATOR$3] = function () { return iter; };
+    exec(arr);
+  } catch (e) { /* empty */ }
+  return safe;
+};
+
+var task = _task.set;
+var microtask = _microtask();
+
+
+
+
+var PROMISE = 'Promise';
+var TypeError$1 = _global.TypeError;
+var process$3 = _global.process;
+var versions$1 = process$3 && process$3.versions;
+var v8 = versions$1 && versions$1.v8 || '';
+var $Promise = _global[PROMISE];
+var isNode$1 = _classof(process$3) == 'process';
+var empty = function () { /* empty */ };
+var Internal, newGenericPromiseCapability, OwnPromiseCapability, Wrapper;
+var newPromiseCapability = newGenericPromiseCapability = _newPromiseCapability.f;
+
+var USE_NATIVE$1 = !!function () {
+  try {
+    // correct subclassing with @@species support
+    var promise = $Promise.resolve(1);
+    var FakePromise = (promise.constructor = {})[_wks('species')] = function (exec) {
+      exec(empty, empty);
+    };
+    // unhandled rejections tracking support, NodeJS Promise without it fails @@species test
+    return (isNode$1 || typeof PromiseRejectionEvent == 'function')
+      && promise.then(empty) instanceof FakePromise
+      // v8 6.6 (Node 10 and Chrome 66) have a bug with resolving custom thenables
+      // https://bugs.chromium.org/p/chromium/issues/detail?id=830565
+      // we can't detect it synchronously, so just check versions
+      && v8.indexOf('6.6') !== 0
+      && _userAgent.indexOf('Chrome/66') === -1;
+  } catch (e) { /* empty */ }
+}();
+
+// helpers
+var isThenable = function (it) {
+  var then;
+  return _isObject(it) && typeof (then = it.then) == 'function' ? then : false;
+};
+var notify = function (promise, isReject) {
+  if (promise._n) return;
+  promise._n = true;
+  var chain = promise._c;
+  microtask(function () {
+    var value = promise._v;
+    var ok = promise._s == 1;
+    var i = 0;
+    var run = function (reaction) {
+      var handler = ok ? reaction.ok : reaction.fail;
+      var resolve = reaction.resolve;
+      var reject = reaction.reject;
+      var domain = reaction.domain;
+      var result, then, exited;
+      try {
+        if (handler) {
+          if (!ok) {
+            if (promise._h == 2) onHandleUnhandled(promise);
+            promise._h = 1;
+          }
+          if (handler === true) result = value;
+          else {
+            if (domain) domain.enter();
+            result = handler(value); // may throw
+            if (domain) {
+              domain.exit();
+              exited = true;
+            }
+          }
+          if (result === reaction.promise) {
+            reject(TypeError$1('Promise-chain cycle'));
+          } else if (then = isThenable(result)) {
+            then.call(result, resolve, reject);
+          } else resolve(result);
+        } else reject(value);
+      } catch (e) {
+        if (domain && !exited) domain.exit();
+        reject(e);
+      }
+    };
+    while (chain.length > i) run(chain[i++]); // variable length - can't use forEach
+    promise._c = [];
+    promise._n = false;
+    if (isReject && !promise._h) onUnhandled(promise);
+  });
+};
+var onUnhandled = function (promise) {
+  task.call(_global, function () {
+    var value = promise._v;
+    var unhandled = isUnhandled(promise);
+    var result, handler, console;
+    if (unhandled) {
+      result = _perform(function () {
+        if (isNode$1) {
+          process$3.emit('unhandledRejection', value, promise);
+        } else if (handler = _global.onunhandledrejection) {
+          handler({ promise: promise, reason: value });
+        } else if ((console = _global.console) && console.error) {
+          console.error('Unhandled promise rejection', value);
+        }
+      });
+      // Browsers should not trigger `rejectionHandled` event if it was handled here, NodeJS - should
+      promise._h = isNode$1 || isUnhandled(promise) ? 2 : 1;
+    } promise._a = undefined;
+    if (unhandled && result.e) throw result.v;
+  });
+};
+var isUnhandled = function (promise) {
+  return promise._h !== 1 && (promise._a || promise._c).length === 0;
+};
+var onHandleUnhandled = function (promise) {
+  task.call(_global, function () {
+    var handler;
+    if (isNode$1) {
+      process$3.emit('rejectionHandled', promise);
+    } else if (handler = _global.onrejectionhandled) {
+      handler({ promise: promise, reason: promise._v });
+    }
+  });
+};
+var $reject = function (value) {
+  var promise = this;
+  if (promise._d) return;
+  promise._d = true;
+  promise = promise._w || promise; // unwrap
+  promise._v = value;
+  promise._s = 2;
+  if (!promise._a) promise._a = promise._c.slice();
+  notify(promise, true);
+};
+var $resolve = function (value) {
+  var promise = this;
+  var then;
+  if (promise._d) return;
+  promise._d = true;
+  promise = promise._w || promise; // unwrap
+  try {
+    if (promise === value) throw TypeError$1("Promise can't be resolved itself");
+    if (then = isThenable(value)) {
+      microtask(function () {
+        var wrapper = { _w: promise, _d: false }; // wrap
+        try {
+          then.call(value, _ctx($resolve, wrapper, 1), _ctx($reject, wrapper, 1));
+        } catch (e) {
+          $reject.call(wrapper, e);
+        }
+      });
+    } else {
+      promise._v = value;
+      promise._s = 1;
+      notify(promise, false);
+    }
+  } catch (e) {
+    $reject.call({ _w: promise, _d: false }, e); // wrap
+  }
+};
+
+// constructor polyfill
+if (!USE_NATIVE$1) {
+  // 25.4.3.1 Promise(executor)
+  $Promise = function Promise(executor) {
+    _anInstance(this, $Promise, PROMISE, '_h');
+    _aFunction(executor);
+    Internal.call(this);
+    try {
+      executor(_ctx($resolve, this, 1), _ctx($reject, this, 1));
+    } catch (err) {
+      $reject.call(this, err);
+    }
+  };
+  // eslint-disable-next-line no-unused-vars
+  Internal = function Promise(executor) {
+    this._c = [];             // <- awaiting reactions
+    this._a = undefined;      // <- checked in isUnhandled reactions
+    this._s = 0;              // <- state
+    this._d = false;          // <- done
+    this._v = undefined;      // <- value
+    this._h = 0;              // <- rejection state, 0 - default, 1 - handled, 2 - unhandled
+    this._n = false;          // <- notify
+  };
+  Internal.prototype = _redefineAll($Promise.prototype, {
+    // 25.4.5.3 Promise.prototype.then(onFulfilled, onRejected)
+    then: function then(onFulfilled, onRejected) {
+      var reaction = newPromiseCapability(_speciesConstructor(this, $Promise));
+      reaction.ok = typeof onFulfilled == 'function' ? onFulfilled : true;
+      reaction.fail = typeof onRejected == 'function' && onRejected;
+      reaction.domain = isNode$1 ? process$3.domain : undefined;
+      this._c.push(reaction);
+      if (this._a) this._a.push(reaction);
+      if (this._s) notify(this, false);
+      return reaction.promise;
+    },
+    // 25.4.5.1 Promise.prototype.catch(onRejected)
+    'catch': function (onRejected) {
+      return this.then(undefined, onRejected);
+    }
+  });
+  OwnPromiseCapability = function () {
+    var promise = new Internal();
+    this.promise = promise;
+    this.resolve = _ctx($resolve, promise, 1);
+    this.reject = _ctx($reject, promise, 1);
+  };
+  _newPromiseCapability.f = newPromiseCapability = function (C) {
+    return C === $Promise || C === Wrapper
+      ? new OwnPromiseCapability(C)
+      : newGenericPromiseCapability(C);
+  };
+}
+
+_export(_export.G + _export.W + _export.F * !USE_NATIVE$1, { Promise: $Promise });
+_setToStringTag($Promise, PROMISE);
+_setSpecies(PROMISE);
+Wrapper = _core[PROMISE];
+
+// statics
+_export(_export.S + _export.F * !USE_NATIVE$1, PROMISE, {
+  // 25.4.4.5 Promise.reject(r)
+  reject: function reject(r) {
+    var capability = newPromiseCapability(this);
+    var $$reject = capability.reject;
+    $$reject(r);
+    return capability.promise;
+  }
+});
+_export(_export.S + _export.F * (_library ), PROMISE, {
+  // 25.4.4.6 Promise.resolve(x)
+  resolve: function resolve(x) {
+    return _promiseResolve( this === Wrapper ? $Promise : this, x);
+  }
+});
+_export(_export.S + _export.F * !(USE_NATIVE$1 && _iterDetect(function (iter) {
+  $Promise.all(iter)['catch'](empty);
+})), PROMISE, {
+  // 25.4.4.1 Promise.all(iterable)
+  all: function all(iterable) {
+    var C = this;
+    var capability = newPromiseCapability(C);
+    var resolve = capability.resolve;
+    var reject = capability.reject;
+    var result = _perform(function () {
+      var values = [];
+      var index = 0;
+      var remaining = 1;
+      _forOf(iterable, false, function (promise) {
+        var $index = index++;
+        var alreadyCalled = false;
+        values.push(undefined);
+        remaining++;
+        C.resolve(promise).then(function (value) {
+          if (alreadyCalled) return;
+          alreadyCalled = true;
+          values[$index] = value;
+          --remaining || resolve(values);
+        }, reject);
+      });
+      --remaining || resolve(values);
+    });
+    if (result.e) reject(result.v);
+    return capability.promise;
+  },
+  // 25.4.4.4 Promise.race(iterable)
+  race: function race(iterable) {
+    var C = this;
+    var capability = newPromiseCapability(C);
+    var reject = capability.reject;
+    var result = _perform(function () {
+      _forOf(iterable, false, function (promise) {
+        C.resolve(promise).then(capability.resolve, reject);
+      });
+    });
+    if (result.e) reject(result.v);
+    return capability.promise;
+  }
+});
+
+_export(_export.P + _export.R, 'Promise', { 'finally': function (onFinally) {
+  var C = _speciesConstructor(this, _core.Promise || _global.Promise);
+  var isFunction = typeof onFinally == 'function';
+  return this.then(
+    isFunction ? function (x) {
+      return _promiseResolve(C, onFinally()).then(function () { return x; });
+    } : onFinally,
+    isFunction ? function (e) {
+      return _promiseResolve(C, onFinally()).then(function () { throw e; });
+    } : onFinally
+  );
+} });
+
+// https://github.com/tc39/proposal-promise-try
+
+
+
+
+_export(_export.S, 'Promise', { 'try': function (callbackfn) {
+  var promiseCapability = _newPromiseCapability.f(this);
+  var result = _perform(callbackfn);
+  (result.e ? promiseCapability.reject : promiseCapability.resolve)(result.v);
+  return promiseCapability.promise;
+} });
+
+var promise = _core.Promise;
+
+var promise$1 = createCommonjsModule(function (module) {
+module.exports = { "default": promise, __esModule: true };
+});
+
+var _Promise = unwrapExports(promise$1);
 
 //tween最小过渡时间
 var minDuration = 100;
 var placeholderTransaction = _Symbol();
 
-var Segment = function (_EventDispatcher3) {
-    _inherits(Segment, _EventDispatcher3);
+var Segment = function (_EventDispatcher) {
+    _inherits(Segment, _EventDispatcher);
 
     function Segment(name) {
         _classCallCheck(this, Segment);
 
-        var _this5 = _possibleConstructorReturn(this, (Segment.__proto__ || _Object$getPrototypeOf(Segment)).call(this));
+        var _this = _possibleConstructorReturn(this, (Segment.__proto__ || _Object$getPrototypeOf(Segment)).call(this));
 
-        _this5._transactions = [];
-        _this5._totalTime = minDuration;
-        _this5._name = name;
+        _this._transactions = [];
+        _this._totalTime = minDuration;
+        _this._name = name;
 
         //为了回放有正确的结尾等待，顾创建一个默认从0开始的transaction。
         var placeholderTransactionFn = function placeholderTransactionFn() {};
-        var tween = createTween.call(_this5, {
+        var tween = createTween.call(_this, {
             type: "point",
             value: 0,
             fn: placeholderTransactionFn
         });
-        _this5._transactions.push({
+        _this._transactions.push({
             tween: tween,
             fn: placeholderTransactionFn,
             name: placeholderTransaction,
             type: "point",
             value: 0
         });
-        return _this5;
+        return _this;
     }
 
     _createClass(Segment, [{
         key: "start",
         value: function start() {
-            for (var _len2 = arguments.length, names = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-                names[_key2] = arguments[_key2];
+            for (var _len = arguments.length, names = Array(_len), _key = 0; _key < _len; _key++) {
+                names[_key] = arguments[_key];
             }
 
             segmentRun.call.apply(segmentRun, [this].concat(names, [false]));
@@ -3496,8 +3083,44 @@ var Segment = function (_EventDispatcher3) {
     }, {
         key: "forceStart",
         value: function forceStart() {
+            for (var _len2 = arguments.length, names = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+                names[_key2] = arguments[_key2];
+            }
+
+            var transactions = void 0;
+
+            if (names.length > 0) {
+                transactions = this._transactions.filter(function (_ref) {
+                    var name = _ref.name;
+                    return names.includes(name);
+                });
+            } else {
+                transactions = this._transactions;
+            }
+
+            if (transactions.length === 0) return false;
+
+            transactions.forEach(function (_ref2) {
+                var tween = _ref2.tween;
+
+                tween.stop();
+            });
+            this.start.apply(this, names);
+        }
+    }, {
+        key: "playback",
+        value: function playback() {
             for (var _len3 = arguments.length, names = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
                 names[_key3] = arguments[_key3];
+            }
+
+            segmentRun.call.apply(segmentRun, [this].concat(names, [true]));
+        }
+    }, {
+        key: "forcePlayback",
+        value: function forcePlayback() {
+            for (var _len4 = arguments.length, names = Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
+                names[_key4] = arguments[_key4];
             }
 
             var transactions = void 0;
@@ -3518,51 +3141,15 @@ var Segment = function (_EventDispatcher3) {
 
                 tween.stop();
             });
-            this.start.apply(this, names);
-        }
-    }, {
-        key: "playback",
-        value: function playback() {
-            for (var _len4 = arguments.length, names = Array(_len4), _key4 = 0; _key4 < _len4; _key4++) {
-                names[_key4] = arguments[_key4];
-            }
-
-            segmentRun.call.apply(segmentRun, [this].concat(names, [true]));
-        }
-    }, {
-        key: "forcePlayback",
-        value: function forcePlayback() {
-            for (var _len5 = arguments.length, names = Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
-                names[_key5] = arguments[_key5];
-            }
-
-            var transactions = void 0;
-
-            if (names.length > 0) {
-                transactions = this._transactions.filter(function (_ref5) {
-                    var name = _ref5.name;
-                    return names.includes(name);
-                });
-            } else {
-                transactions = this._transactions;
-            }
-
-            if (transactions.length === 0) return false;
-
-            transactions.forEach(function (_ref6) {
-                var tween = _ref6.tween;
-
-                tween.stop();
-            });
             this.playback.apply(this, names);
         }
     }, {
         key: "stop",
         value: function stop() {
-            var _this6 = this;
+            var _this2 = this;
 
-            for (var _len6 = arguments.length, names = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
-                names[_key6] = arguments[_key6];
+            for (var _len5 = arguments.length, names = Array(_len5), _key5 = 0; _key5 < _len5; _key5++) {
+                names[_key5] = arguments[_key5];
             }
 
             // if (!this._isPlaying) return false;
@@ -3592,9 +3179,9 @@ var Segment = function (_EventDispatcher3) {
 
             if (transactions.length === 0) return false;
 
-            var stopElements = transactions.map(function (_ref7) {
-                var tween = _ref7.tween,
-                    fn = _ref7.fn;
+            var stopElements = transactions.map(function (_ref5) {
+                var tween = _ref5.tween,
+                    fn = _ref5.fn;
 
                 return new _Promise(function (resolve) {
                     if (tween._isPlaying === false) {
@@ -3608,11 +3195,11 @@ var Segment = function (_EventDispatcher3) {
             });
 
             _Promise.all(stopElements).then(function () {
-                _this6.dispatchEvent({ type: STOP, transactions: transactions });
+                _this2.dispatchEvent({ type: STOP, transactions: transactions });
             });
 
-            transactions.forEach(function (_ref8) {
-                var tween = _ref8.tween;
+            transactions.forEach(function (_ref6) {
+                var tween = _ref6.tween;
 
                 tween.stop();
             });
@@ -3620,10 +3207,10 @@ var Segment = function (_EventDispatcher3) {
     }, {
         key: "pause",
         value: function pause() {
-            var _this7 = this;
+            var _this3 = this;
 
-            for (var _len7 = arguments.length, names = Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
-                names[_key7] = arguments[_key7];
+            for (var _len6 = arguments.length, names = Array(_len6), _key6 = 0; _key6 < _len6; _key6++) {
+                names[_key6] = arguments[_key6];
             }
 
             //暂停中或非运行中就阻止
@@ -3634,22 +3221,22 @@ var Segment = function (_EventDispatcher3) {
             var transactions = void 0;
 
             if (names.length > 0) {
-                transactions = this._transactions.filter(function (_ref9) {
-                    var name = _ref9.name,
-                        tween = _ref9.tween;
+                transactions = this._transactions.filter(function (_ref7) {
+                    var name = _ref7.name,
+                        tween = _ref7.tween;
                     return names.includes(name) && !tween._isPaused && tween._isPlaying;
                 });
             } else {
-                transactions = this._transactions.filter(function (_ref10) {
-                    var tween = _ref10.tween;
+                transactions = this._transactions.filter(function (_ref8) {
+                    var tween = _ref8.tween;
                     return !tween._isPaused && tween._isPlaying;
                 });
             }
 
             if (transactions.length === 0) return false;
-            var pauseElements = transactions.map(function (_ref11) {
-                var tween = _ref11.tween,
-                    fn = _ref11.fn;
+            var pauseElements = transactions.map(function (_ref9) {
+                var tween = _ref9.tween,
+                    fn = _ref9.fn;
 
                 return new _Promise(function (resolve) {
                     // if (tween._isPlaying === false) {
@@ -3663,11 +3250,11 @@ var Segment = function (_EventDispatcher3) {
             });
 
             _Promise.all(pauseElements).then(function () {
-                _this7.dispatchEvent({ type: PAUSE, transactions: transactions });
+                _this3.dispatchEvent({ type: PAUSE, transactions: transactions });
             });
 
-            transactions.forEach(function (_ref12) {
-                var tween = _ref12.tween;
+            transactions.forEach(function (_ref10) {
+                var tween = _ref10.tween;
 
                 tween.pause();
             });
@@ -3675,10 +3262,10 @@ var Segment = function (_EventDispatcher3) {
     }, {
         key: "resume",
         value: function resume() {
-            var _this8 = this;
+            var _this4 = this;
 
-            for (var _len8 = arguments.length, names = Array(_len8), _key8 = 0; _key8 < _len8; _key8++) {
-                names[_key8] = arguments[_key8];
+            for (var _len7 = arguments.length, names = Array(_len7), _key7 = 0; _key7 < _len7; _key7++) {
+                names[_key7] = arguments[_key7];
             }
 
             //没有暂停或非运行中就阻止
@@ -3689,23 +3276,23 @@ var Segment = function (_EventDispatcher3) {
             var transactions = void 0;
 
             if (names.length > 0) {
-                transactions = this._transactions.filter(function (_ref13) {
-                    var name = _ref13.name,
-                        tween = _ref13.tween;
+                transactions = this._transactions.filter(function (_ref11) {
+                    var name = _ref11.name,
+                        tween = _ref11.tween;
                     return names.includes(name) && tween._isPaused && tween._isPlaying;
                 });
             } else {
-                transactions = this._transactions.filter(function (_ref14) {
-                    var tween = _ref14.tween;
+                transactions = this._transactions.filter(function (_ref12) {
+                    var tween = _ref12.tween;
                     return tween._isPaused && tween._isPlaying;
                 });
             }
 
             if (transactions.length === 0) return false;
 
-            var resumeElements = transactions.map(function (_ref15) {
-                var tween = _ref15.tween,
-                    fn = _ref15.fn;
+            var resumeElements = transactions.map(function (_ref13) {
+                var tween = _ref13.tween,
+                    fn = _ref13.fn;
 
                 return new _Promise(function (resolve) {
                     // if (tween._isPlaying === false) {
@@ -3719,11 +3306,11 @@ var Segment = function (_EventDispatcher3) {
             });
 
             _Promise.all(resumeElements).then(function () {
-                _this8.dispatchEvent({ type: RESUME, transactions: transactions });
+                _this4.dispatchEvent({ type: RESUME, transactions: transactions });
             });
 
-            transactions.forEach(function (_ref16) {
-                var tween = _ref16.tween;
+            transactions.forEach(function (_ref14) {
+                var tween = _ref14.tween;
 
                 tween.resume();
             });
@@ -3735,13 +3322,14 @@ var Segment = function (_EventDispatcher3) {
                 //是否执行回放
                 var playback = false;
 
-                for (var _len9 = arguments.length, names = Array(_len9 > 1 ? _len9 - 1 : 0), _key9 = 1; _key9 < _len9; _key9++) {
-                    names[_key9 - 1] = arguments[_key9];
+                for (var _len8 = arguments.length, names = Array(_len8 > 1 ? _len8 - 1 : 0), _key8 = 1; _key8 < _len8; _key8++) {
+                    names[_key8 - 1] = arguments[_key8];
                 }
 
                 if (typeof names[names.length - 1] === "boolean") {
                     playback = names.pop();
                 }
+                this._nextSegment = nextSegment;
 
                 if (!playback) {
                     var _nextSegment$start;
@@ -3758,13 +3346,14 @@ var Segment = function (_EventDispatcher3) {
     }, {
         key: "removeChain",
         value: function removeChain() {
+            delete this._nextSegment;
             delete this._nextSegmentStrat;
         }
     }, {
         key: "transaction",
         value: function transaction() {
-            for (var _len10 = arguments.length, arg = Array(_len10), _key10 = 0; _key10 < _len10; _key10++) {
-                arg[_key10] = arguments[_key10];
+            for (var _len9 = arguments.length, arg = Array(_len9), _key9 = 0; _key9 < _len9; _key9++) {
+                arg[_key9] = arguments[_key9];
             }
 
             var options = {};
@@ -3840,17 +3429,17 @@ var Segment = function (_EventDispatcher3) {
     }, {
         key: "remove",
         value: function remove() {
-            var _this9 = this;
+            var _this5 = this;
 
-            for (var _len11 = arguments.length, names = Array(_len11), _key11 = 0; _key11 < _len11; _key11++) {
-                names[_key11] = arguments[_key11];
+            for (var _len10 = arguments.length, names = Array(_len10), _key10 = 0; _key10 < _len10; _key10++) {
+                names[_key10] = arguments[_key10];
             }
 
             if (names === 0) return;
 
             var prevLength = this._transactions.length;
-            this._transactions = this._transactions.filter(function (_ref17) {
-                var name = _ref17.name;
+            this._transactions = this._transactions.filter(function (_ref15) {
+                var name = _ref15.name;
                 return !names.includes(name) || name === placeholderTransaction;
             });
             var currentLength = this._transactions.length;
@@ -3858,14 +3447,14 @@ var Segment = function (_EventDispatcher3) {
             if (prevLength === currentLength) return;
 
             this._totalTime = 0;
-            this._transactions.forEach(function (_ref18) {
-                var type = _ref18.type,
-                    value = _ref18.value;
+            this._transactions.forEach(function (_ref16) {
+                var type = _ref16.type,
+                    value = _ref16.value;
 
                 if (type === "point") {
-                    _this9._totalTime = Math.max(_this9._totalTime, value);
+                    _this5._totalTime = Math.max(_this5._totalTime, value);
                 } else if (type === "interval") {
-                    _this9._totalTime = Math.max(_this9._totalTime, value[1]);
+                    _this5._totalTime = Math.max(_this5._totalTime, value[1]);
                 } else {
                     throw new Error("transaction type error!");
                 }
@@ -3876,15 +3465,14 @@ var Segment = function (_EventDispatcher3) {
     return Segment;
 }(EventDispatcher);
 
-TimeLine.Segment = Segment;
 
-function createTween(_ref19) {
-    var _this10 = this;
+function createTween(_ref17) {
+    var _this6 = this;
 
-    var type = _ref19.type,
-        value = _ref19.value,
-        fn = _ref19.fn,
-        easing = _ref19.easing;
+    var type = _ref17.type,
+        value = _ref17.value,
+        fn = _ref17.fn,
+        easing = _ref17.easing;
 
     var tween = void 0;
 
@@ -3895,11 +3483,11 @@ function createTween(_ref19) {
         tween.to({
             time: value[1]
         }, value[1] - value[0]);
-        tween._onUpdate(function (_ref20) {
-            var time = _ref20.time;
+        tween._onUpdate(function (_ref18) {
+            var time = _ref18.time;
 
             var percent = (time - value[0]) / (value[1] - value[0]);
-            var globalPercent = time / _this10._totalTime;
+            var globalPercent = time / _this6._totalTime;
             fn(time, percent, globalPercent);
         });
         if (easing) tween.easing(easing);
@@ -3910,19 +3498,19 @@ function createTween(_ref19) {
         tween.duration(minDuration);
     }
 
-    tween._onStart(function (_ref21) {
-        var time = _ref21.time;
+    tween._onStart(function (_ref19) {
+        var time = _ref19.time;
 
-        fn(time, 0, time / _this10._totalTime);
+        fn(time, 0, time / _this6._totalTime);
     });
     return tween;
 }
 
 function segmentRun() {
-    var _this11 = this;
+    var _this7 = this;
 
-    for (var _len12 = arguments.length, names = Array(_len12), _key12 = 0; _key12 < _len12; _key12++) {
-        names[_key12] = arguments[_key12];
+    for (var _len11 = arguments.length, names = Array(_len11), _key11 = 0; _key11 < _len11; _key11++) {
+        names[_key11] = arguments[_key11];
     }
 
     //是否执行回放
@@ -3934,14 +3522,14 @@ function segmentRun() {
     var transactions = void 0;
 
     if (names.length > 0) {
-        transactions = this._transactions.filter(function (_ref22) {
-            var name = _ref22.name,
-                tween = _ref22.tween;
+        transactions = this._transactions.filter(function (_ref20) {
+            var name = _ref20.name,
+                tween = _ref20.tween;
             return names.includes(name) && !tween._isPlaying;
         });
     } else {
-        transactions = this._transactions.filter(function (_ref23) {
-            var tween = _ref23.tween;
+        transactions = this._transactions.filter(function (_ref21) {
+            var tween = _ref21.tween;
             return !tween._isPlaying;
         });
     }
@@ -3949,29 +3537,29 @@ function segmentRun() {
     if (transactions.length === 0) return false;
 
     //开始
-    var startElements = transactions.map(function (_ref24) {
-        var tween = _ref24.tween,
-            fn = _ref24.fn;
+    var startElements = transactions.map(function (_ref22) {
+        var tween = _ref22.tween,
+            fn = _ref22.fn;
 
-        // return new Promise((resolve) => {
-        tween._onStart(function (_ref25) {
-            var time = _ref25.time;
+        return new _Promise(function (resolve) {
+            tween._onStart(function (_ref23) {
+                var time = _ref23.time;
 
-            fn(time, 0, time / _this11._totalTime);
-            // resolve();
+                fn(time, 0, time / _this7._totalTime);
+                resolve();
+            });
         });
-        // });
     });
 
-    // Promise.race(startElements).then(() => {
-    //     this.dispatchEvent({ type: START, transactions });
-    // });
+    _Promise.race(startElements).then(function () {
+        _this7.dispatchEvent({ type: START, transactions: transactions });
+    });
 
     //完整的结束
-    var completeElements = transactions.map(function (_ref26) {
-        var tween = _ref26.tween,
-            type = _ref26.type,
-            value = _ref26.value;
+    var completeElements = transactions.map(function (_ref24) {
+        var tween = _ref24.tween,
+            type = _ref24.type,
+            value = _ref24.value;
 
         return new _Promise(function (resolve) {
             tween._onComplete(function () {
@@ -3995,7 +3583,7 @@ function segmentRun() {
 
     _Promise.all(completeElements).then(function () {
         // this._isPlaying = false;
-        _this11.dispatchEvent({ type: COMPLETE, transactions: transactions });
+        _this7.dispatchEvent({ type: COMPLETE, transactions: transactions });
         //如果有定义下一个衔接的片段
         // if (this._nextSegment instanceof Segment) this._nextSegment.start();
     });
@@ -4028,21 +3616,32 @@ function segmentRun() {
     });
 
     _Promise.all(finishElements).then(function () {
-        var result = transactions.map(function (_ref27) {
-            var finishType = _ref27.finishType;
+        var result = transactions.map(function (_ref25) {
+            var finishType = _ref25.finishType;
             return finishType;
         });
         //如果有定义下一个衔接的片段，并且没有全部停止，接衔接
-        if (typeof _this11._nextSegmentStrat === "function" && result.includes("complete")) {
-            _this11._nextSegmentStrat();
+        if (typeof _this7._nextSegmentStrat === "function" && result.includes("complete")) {
+            //先开始在结束，防止_currentSegment有间隙无法正常操作
+            if (_this7._nextSegment.hasEventListener(START, _this7._currentSegmentFinish2nextSegmentStartCallback)) {
+                _this7._nextSegment.removeEventListener(START, _this7._currentSegmentFinish2nextSegmentStartCallback);
+            }
+            _this7._currentSegmentFinish2nextSegmentStartCallback = function () {
+                _this7._nextSegment.removeEventListener(START, _this7._currentSegmentFinish2nextSegmentStartCallback);
+                _this7._currentSegmentFinish2nextSegmentStartCallback = null;
+                _this7.dispatchEvent({ type: FINISH, transactions: transactions });
+            };
+            _this7._nextSegment.addEventListener(START, _this7._currentSegmentFinish2nextSegmentStartCallback);
+            _this7._nextSegmentStrat();
+        } else {
+            _this7.dispatchEvent({ type: FINISH, transactions: transactions });
         }
-        _this11.dispatchEvent({ type: FINISH, transactions: transactions });
     });
 
-    transactions.forEach(function (_ref28) {
-        var tween = _ref28.tween,
-            type = _ref28.type,
-            value = _ref28.value;
+    transactions.forEach(function (_ref26) {
+        var tween = _ref26.tween,
+            type = _ref26.type,
+            value = _ref26.value;
 
         if (!playback) {
             if (type === "interval") {
@@ -4052,16 +3651,838 @@ function segmentRun() {
             }
         } else {
             if (type === "interval") {
-                tween.delay(_this11._totalTime - value[1]);
+                tween.delay(_this7._totalTime - value[1]);
             } else if (type === "point") {
-                tween.delay(_this11._totalTime - value);
+                tween.delay(_this7._totalTime - value);
             }
         }
         tween.playback(playback);
         tween.start();
     });
 
-    this.dispatchEvent({ type: START, transactions: transactions });
+    // this.dispatchEvent({ type: START, transactions });
 }
 
-export default TimeLine;
+var Arrange = function (_EventDispatcher) {
+    _inherits(Arrange, _EventDispatcher);
+
+    function Arrange(segments) {
+        _classCallCheck(this, Arrange);
+
+        var _this = _possibleConstructorReturn(this, (Arrange.__proto__ || _Object$getPrototypeOf(Arrange)).call(this));
+
+        _this._segments = segments;
+        _this._type = "forward";
+
+        _this._isPlaying = false;
+        _this._isPaused = false;
+
+        //监听片段执行开始时回调
+        var length = _this._segments.length;
+
+        var _loop = function _loop(i) {
+            var currentSegment = _this._segments[i];
+
+            currentSegment.addEventListener(START, function () {
+                //如果排序处于停止状态则取消监听
+                if (!_this._isPlaying) return;
+                _this._currentSegment = currentSegment;
+            });
+
+            // currentSegment.addEventListener(PAUSE, () => {
+            //     //如果排序处于停止状态则取消监听
+            //     if (!this._isPlaying) return;
+            //     this.dispatchEvent({ type: PAUSE });
+            // });
+
+            // currentSegment.addEventListener(RESUME, () => {
+            //     //如果排序处于停止状态则取消监听
+            //     if (!this._isPlaying) return;
+            //     this.dispatchEvent({ type: RESUME });
+            // });
+
+            // currentSegment.addEventListener(STOP, () => {
+            //     //如果排序处于停止状态则取消监听
+            //     if (!this._isPlaying) return;
+            //     this.dispatchEvent({ type: STOP });
+            // });
+
+            // currentSegment.addEventListener(FINISH, ({ transactions }) => {
+            //     //如果排序处于停止状态则取消监听
+            //     if (!this._isPlaying) return;
+            //     //排除特殊的最后一位，最后一位单独处理
+            //     if (currentSegment === this._endSegment) return;
+
+            //     let result = transactions.map(({ finishType }) => finishType);
+            //     //如果存在一个complete就表示不会停止，那么在排序中就不算结束。
+            //     if (result.includes("complete")) return;
+
+            //     this._isPlaying = false;
+
+            //     this.dispatchEvent({ type: FINISH });
+            // });
+        };
+
+        for (var i = 0; i < length; i++) {
+            _loop(i);
+        }
+        return _this;
+    }
+
+    // disable() {
+    //     this._enabled = false;
+    // }
+    // enable() {
+    //     this._enabled = true;
+    // }
+
+    //可以自定义开始位置
+
+
+    _createClass(Arrange, [{
+        key: "start",
+        value: function start(customSegment) {
+            var _this2 = this;
+
+            if (this._isPlaying) {
+                return false;
+            }
+            this._isPlaying = true;
+            this._isPaused = false;
+
+            // let enabled = this._enabled;
+            // this.enable();
+
+            if (!arrangeMode.hasOwnProperty(this._type)) {
+                this._isPlaying = false;
+                // this._enabled = enabled;
+                throw new Error("not set arrange type!");
+            }
+
+            //开始之前先重新链接，并定义开始片段，结束片段
+            arrangeMode[this._type].call(this, customSegment);
+
+            if (!(this._startSegment instanceof Segment) || typeof this._startSegmentStart !== "function") {
+                this._isPlaying = false;
+                // this._enabled = enabled;
+                throw new Error("start segment not instanceof Segment!");
+            }
+
+            /*结束*/
+            //如果存在未完成的结束事件回调则先移除
+            if (this._endSegment.hasEventListener(FINISH, this._endSegmentFinishCallback)) {
+                this._endSegment.removeEventListener(FINISH, this._endSegmentFinishCallback);
+            }
+            //结束事件回调
+            this._endSegmentFinishCallback = function (_ref) {
+                var transactions = _ref.transactions;
+
+                if (!_this2._isPlaying) return;
+                _this2._isPlaying = false;
+
+                //完成后移除回调
+                _this2._endSegment.removeEventListener(FINISH, _this2._endSegmentFinishCallback);
+                _this2._endSegmentFinishCallback = undefined;
+
+                var result = transactions.map(function (_ref2) {
+                    var finishType = _ref2.finishType;
+                    return finishType;
+                });
+                //如果有定义下一个衔接的片段，并且没有全部停止，接衔接
+                if (typeof _this2._nextArrangeStrat === "function" && result.includes("complete")) {
+                    if (_this2._nextArrange.hasEventListener(START, _this2._currentArrangeFinish2nextArrangeStartCallback)) {
+                        _this2._nextArrange.removeEventListener(START, _this2._currentArrangeFinish2nextArrangeStartCallback);
+                    }
+                    _this2._currentArrangeFinish2nextArrangeStartCallback = function () {
+                        _this2._nextArrange.removeEventListener(START, _this2._currentArrangeFinish2nextArrangeStartCallback);
+                        _this2._currentArrangeFinish2nextArrangeStartCallback = null;
+                        _this2.dispatchEvent({
+                            type: FINISH
+                        });
+                    };
+                    _this2._nextArrange.addEventListener(START, _this2._currentArrangeFinish2nextArrangeStartCallback);
+
+                    _this2._nextArrangeStrat();
+                } else {
+                    _this2.dispatchEvent({
+                        type: FINISH
+                    });
+                }
+
+                // this.disable();
+            };
+
+            this._endSegment.addEventListener(FINISH, this._endSegmentFinishCallback);
+
+            /*完整的结束*/
+            //如果存在未完成的完整结束事件回调则先移除
+            if (this._endSegment.hasEventListener(COMPLETE, this._endSegmentCompleteCallback)) {
+                this._endSegment.removeEventListener(COMPLETE, this._endSegmentCompleteCallback);
+            }
+            this._endSegmentCompleteCallback = function (event) {
+                //如果事件监听处于关闭状态则取消监听
+                if (!_this2._isPlaying) return;
+
+                //完成后移除回调
+                _this2._endSegment.removeEventListener(COMPLETE, _this2._endSegmentCompleteCallback);
+                _this2._endSegmentCompleteCallback = undefined;
+
+                _this2.dispatchEvent({
+                    type: COMPLETE
+                });
+            };
+            this._endSegment.addEventListener(COMPLETE, this._endSegmentCompleteCallback);
+
+            //开始事件
+            if (this._startSegment.hasEventListener(START, this._startSegmentCompleteCallback)) {
+                this._startSegment.removeEventListener(START, this._startSegmentCompleteCallback);
+            }
+            this._startSegmentCompleteCallback = function () {
+                _this2._startSegment.removeEventListener(START, _this2._startSegmentCompleteCallback);
+                _this2._startSegmentCompleteCallback = undefined;
+                _this2.dispatchEvent({
+                    type: START
+                });
+            };
+            this._startSegment.addEventListener(START, this._startSegmentCompleteCallback);
+
+            this._startSegmentStart();
+        }
+    }, {
+        key: "stop",
+        value: function stop() {
+            var _this3 = this;
+
+            if (!this._isPlaying) {
+                return false;
+            }
+            if (this._currentSegment instanceof Segment) {
+                if (this._currentSegment !== this._endSegment) {
+                    this._isPlaying = false;
+                }
+
+                if (this._currentSegment !== this._endSegment) {
+
+                    if (this._currentSegment.hasEventListener(FINISH, this._currentSegmentFinishForStopCallback)) {
+                        this._currentSegment.removeEventListener(FINISH, this._currentSegmentFinishForStopCallback);
+                    }
+                    this._currentSegmentFinishForStopCallback = function () {
+                        _this3._currentSegment.removeEventListener(FINISH, _this3._currentSegmentFinishForStopCallback);
+                        _this3._currentSegmentFinishForStopCallback = undefined;
+                        _this3.dispatchEvent({
+                            type: FINISH
+                        });
+                    };
+                    this._currentSegment.addEventListener(FINISH, this._currentSegmentFinishForStopCallback);
+                    // this.dispatchEvent({
+                    //     type: FINISH
+                    // });
+                }
+                this._currentSegment.stop();
+                this.dispatchEvent({
+                    type: STOP
+                });
+            }
+        }
+    }, {
+        key: "pause",
+        value: function pause() {
+            if (!this._isPlaying || this._isPaused) {
+                return false;
+            }
+            if (this._currentSegment instanceof Segment) {
+                this._isPaused = true;
+                this._currentSegment.pause();
+                this.dispatchEvent({
+                    type: PAUSE
+                });
+            }
+        }
+    }, {
+        key: "resume",
+        value: function resume() {
+            if (!this._isPlaying || !this._isPaused) {
+                return false;
+            }
+            if (this._currentSegment instanceof Segment) {
+                this._isPaused = false;
+                this._currentSegment.resume();
+                this.dispatchEvent({
+                    type: RESUME
+                });
+            }
+        }
+    }, {
+        key: "chain",
+        value: function chain(nextArrange) {
+            if (nextArrange instanceof Arrange) {
+                this._nextArrange = nextArrange;
+                this._nextArrangeStrat = nextArrange.start.bind(nextArrange);
+            }
+        }
+    }, {
+        key: "removeChain",
+        value: function removeChain() {
+            delete this._nextArrange;
+            delete this._nextArrangeStrat;
+        }
+    }, {
+        key: "execute",
+        value: function execute(segment) {
+            var _this4 = this;
+
+            if (!this._isPlaying || !(segment instanceof Segment) || this._executeing) {
+                return false;
+            }
+
+            this._executeing = true;
+
+            var isPaused = this._isPaused;
+
+            //如果存在_executeFinishCallback就先移除，有了_executeing，可能并不需要但是为了保险
+            if (this.hasEventListener(FINISH, this._executeForPrevFinishCallback)) {
+                this.removeEventListener(FINISH, this._executeForPrevFinishCallback);
+            }
+            this._executeForPrevFinishCallback = function () {
+                //如果是暂停的就切换到对应segment后执行完就暂停
+                if (isPaused) {
+                    if (segment.hasEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback)) {
+                        segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                    }
+                    _this4._executeForTargetSegmentFinishCallback = function () {
+                        _this4.pause();
+                        _this4._executeing = false;
+                        segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                        _this4._executeForTargetSegmentFinishCallback = undefined;
+                    };
+                    segment.addEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                } else {
+                    _this4._executeing = false;
+                }
+
+                _this4.start(segment);
+
+                _this4.removeEventListener(FINISH, _this4._executeForPrevFinishCallback);
+                _this4._executeForPrevFinishCallback = undefined;
+            };
+            this.addEventListener(FINISH, this._executeForPrevFinishCallback);
+
+            //无论如何先停止
+            this.stop();
+        }
+    }, {
+        key: "switch",
+        value: function _switch(segment) {
+            var _this5 = this;
+
+            if (!this._isPlaying || !(segment instanceof Segment) || this._switching) {
+                return false;
+            }
+
+            this._switching = true;
+
+            var isPaused = this._isPaused;
+
+            //如果存在_switchFinishCallback就先移除，有了_switching，可能并不需要但是为了保险
+            if (this.hasEventListener(FINISH, this._switchForPrevFinishCallback)) {
+                this.removeEventListener(FINISH, this._switchForPrevFinishCallback);
+            }
+            this._switchForPrevFinishCallback = function () {
+                //如果是暂停的就切换到对应segment后就暂停
+                if (isPaused) {
+                    if (_this5.hasEventListener(START, _this5._switchForStartAfterCallback)) {
+                        _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
+                    }
+                    _this5._switchForStartAfterCallback = function () {
+                        _this5.pause();
+                        _this5._switching = false;
+                        _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
+                        _this5._switchForStartAfterCallback = undefined;
+                    };
+                    _this5.addEventListener(START, _this5._switchForStartAfterCallback);
+                } else {
+                    _this5._switching = false;
+                }
+                _this5.start(segment);
+                _this5.removeEventListener(FINISH, _this5._switchForPrevFinishCallback);
+                _this5._switchForPrevFinishCallback = undefined;
+            };
+            this.addEventListener(FINISH, this._switchForPrevFinishCallback);
+
+            //无论如何先停止
+            this.stop();
+        }
+    }, {
+        key: "forward",
+        value: function forward() {
+            this._type = "forward";
+        }
+    }, {
+        key: "back",
+        value: function back() {
+            this._type = "back";
+        }
+    }]);
+
+    return Arrange;
+}(EventDispatcher);
+
+
+var arrangeMode = {
+    discrete: function discrete() {
+        var length = this._segments.length;
+        for (var i = 0; i < length; i++) {
+            this._segments[i].removeChain();
+        }
+    },
+    forward: function forward(customSegment) {
+        arrangeMode.discrete.call(this);
+        var length = this._segments.length;
+        for (var i = 0; i < length; i++) {
+            var _currentSegment = this._segments[i];
+            var nextSegment = this._segments[i + 1];
+
+            //只有当前片段和下一片段都存在的情况才能使用chain
+            if (_currentSegment instanceof Segment && nextSegment instanceof Segment) {
+                _currentSegment.chain(nextSegment);
+            }
+        }
+
+        if (customSegment instanceof Segment && this._segments.includes(customSegment)) {
+            this._startSegment = customSegment;
+        } else {
+            this._startSegment = this._segments[0];
+        }
+
+        this._startSegmentStart = this._startSegment.start.bind(this._startSegment);
+
+        this._endSegment = this._segments[length - 1];
+    },
+    back: function back(customSegment) {
+        arrangeMode.discrete.call(this);
+        var length = this._segments.length;
+        this._endSegment = this._segments[0];
+        for (var i = length - 1; i >= 0; i--) {
+            var _currentSegment2 = this._segments[i];
+            var nextSegment = this._segments[i - 1];
+
+            //只有当前片段和下一片段都存在的情况才能使用chain
+            if (_currentSegment2 instanceof Segment && nextSegment instanceof Segment) {
+                _currentSegment2.chain(nextSegment, true);
+            }
+        }
+        if (customSegment instanceof Segment && this._segments.includes(customSegment)) {
+            this._startSegment = customSegment;
+        } else {
+            this._startSegment = this._segments[length - 1];
+        }
+        this._startSegmentStart = this._startSegment.playback.bind(this._startSegment);
+        this._endSegment = this._segments[0];
+    }
+};
+
+var TimeLine$1 = function (_EventDispatcher) {
+    _inherits(TimeLine, _EventDispatcher);
+
+    function TimeLine() {
+        _classCallCheck(this, TimeLine);
+
+        var _this = _possibleConstructorReturn(this, (TimeLine.__proto__ || _Object$getPrototypeOf(TimeLine)).call(this));
+
+        _this._segments = [];
+        _this._currentArrange;
+        _this._isPlaying = false;
+        _this._isPaused = false;
+        _this._repeat = 1;
+
+        _this._arrangements = [];
+        return _this;
+    }
+
+    _createClass(TimeLine, [{
+        key: "addSegment",
+        value: function addSegment() {
+            var _segments;
+
+            for (var _len = arguments.length, segments = Array(_len), _key = 0; _key < _len; _key++) {
+                segments[_key] = arguments[_key];
+            }
+
+            segments.forEach(function (segment) {
+                if (!(segment instanceof Segment)) throw new Error("not instanceof Segment!");
+            });
+            (_segments = this._segments).push.apply(_segments, segments);
+        }
+    }, {
+        key: "pushForwardArrange",
+        value: function pushForwardArrange() {
+            var arrange = new Arrange(this._segments);
+            arrange.forward();
+            arrangeEventBind.call(this, arrange);
+            this._arrangements.push(arrange);
+            return arrange;
+        }
+    }, {
+        key: "pushBackArrange",
+        value: function pushBackArrange() {
+            var arrange = new Arrange(this._segments);
+            arrange.back();
+            arrangeEventBind.call(this, arrange);
+            this._arrangements.push(arrange);
+            return arrange;
+        }
+    }, {
+        key: "getArrangements",
+        value: function getArrangements() {
+            return this._arrangements;
+        }
+    }, {
+        key: "clearArrangements",
+        value: function clearArrangements() {
+            this._arrangements = [];
+        }
+    }, {
+        key: "start",
+        value: function start() {
+            var _this2 = this;
+
+            if (this._isPlaying) {
+                return false;
+            }
+
+            var customArrange = void 0;
+            var customSegment = void 0;
+
+            if (arguments.length > 0) {
+                if (arguments.length === 1) {
+                    customSegment = arguments.length <= 0 ? undefined : arguments[0];
+                } else {
+                    customArrange = arguments.length <= 0 ? undefined : arguments[0];
+                    customSegment = arguments.length <= 1 ? undefined : arguments[1];
+                }
+            }
+
+            this._isPlaying = true;
+            this._isPaused = false;
+
+            var length = this._arrangements.length;
+            //如果没有追加排列那么默认正序排列
+            if (length === 0) {
+                var defaultArrange = this.pushForwardArrange();
+                //使用默认排序后会清理排序集合
+                this._defaultArrangeForPrevFinishCallback = function () {
+                    defaultArrange.removeEventListener(FINISH, _this2._defaultArrangeForPrevFinishCallback);
+                    _this2._defaultArrangeForPrevFinishCallback = undefined;
+                    _this2.clearArrangements();
+                };
+                defaultArrange.addEventListener(FINISH, this._defaultArrangeForPrevFinishCallback);
+                length = 1;
+            }
+
+            for (var i = 0; i < length; i++) {
+                var currentArrange = this._arrangements[i];
+                var nextArrange = this._arrangements[i + 1];
+                if (currentArrange instanceof Arrange && nextArrange instanceof Arrange) {
+                    currentArrange.chain(nextArrange);
+                }
+            }
+
+            //如果自定义了开始的排序
+            if (customArrange instanceof Arrange && this._arrangements.includes(customArrange)) {
+                this._startArrange = customArrange;
+            } else {
+                this._startArrange = this._arrangements[0];
+            }
+            this._endArrange = this._arrangements[length - 1];
+
+            //已经循环的次数
+            if (this._endArrange.hasEventListener(FINISH, this._endArrangeEventListenerFn)) {
+                this._endArrange.removeEventListener(FINISH, this._endArrangeEventListenerFn);
+            }
+            var repeat = 0;
+            this._endArrangeEventListenerFn = function () {
+                if (!_this2._isPlaying) return;
+                repeat++;
+                //如果完成规定次数则停止
+                if (repeat >= _this2._repeat || _this2._needStop) {
+                    _this2._isPlaying = false;
+                    //并且移除该事件
+                    _this2._endArrange.removeEventListener(FINISH, _this2._endArrangeEventListenerFn);
+                    _this2._endArrangeEventListenerFn = undefined;
+                    //如果是自然结束
+                    if (repeat >= _this2._repeat && !_this2._needStop) {
+                        _this2.dispatchEvent({
+                            type: COMPLETE
+                        });
+                    }
+                    //如果结束，当前排序是最后排序则触发事件
+                    if (_this2._currentArrange === _this2._endArrange) {
+                        _this2._needStop = false;
+                        _this2.dispatchEvent({
+                            type: FINISH
+                        });
+                    }
+                    //否则再次重头开始
+                } else {
+                    _this2._startArrange.start();
+                }
+            };
+            this._endArrange.addEventListener(FINISH, this._endArrangeEventListenerFn);
+
+            //开始事件
+            if (this._startArrange.hasEventListener(START, this._startArrangeCompleteCallback)) {
+                this._startArrange.removeEventListener(START, this._startArrangeCompleteCallback);
+            }
+            this._startArrangeCompleteCallback = function () {
+                _this2._startArrange.removeEventListener(START, _this2._startArrangeCompleteCallback);
+                _this2._startArrangeCompleteCallback = undefined;
+                _this2.dispatchEvent({
+                    type: START
+                });
+            };
+            this._startArrange.addEventListener(START, this._startArrangeCompleteCallback);
+
+            this._startArrange.start(customSegment);
+        }
+
+        // pushReverse() {}
+
+    }, {
+        key: "repeat",
+        value: function repeat(_repeat) {
+            if (typeof _repeat !== "number" || _repeat <= 0) throw new Error("Invalid repeat!");
+            this._repeat = _repeat;
+        }
+    }, {
+        key: "loop",
+        value: function loop() {
+            this._repeat = Infinity;
+        }
+    }, {
+        key: "stop",
+        value: function stop() {
+            var _this3 = this;
+
+            if (!this._isPlaying) {
+                return false;
+            }
+
+            if (this._currentArrange instanceof Arrange) {
+                this._needStop = true;
+                //如果当前排序不是最后一个片段，则手动触发结束标志
+                if (this._currentArrange !== this._endArrange) {
+                    this._isPlaying = false;
+                }
+                var currentArrange = this._currentArrange;
+                var endArrange = this._endArrange;
+
+                //如果当前排序不是最后一个片段，则手动触发结束事件
+                if (currentArrange !== endArrange) {
+                    this._needStop = false;
+                    if (this._currentArrange.hasEventListener(FINISH, this._currentArrangeFinishForStopCallback)) {
+                        this._currentArrange.removeEventListener(FINISH, this._currentArrangeFinishForStopCallback);
+                    }
+                    this._currentArrangeFinishForStopCallback = function () {
+                        _this3._currentArrange.removeEventListener(FINISH, _this3._currentArrangeFinishForStopCallback);
+                        _this3._currentArrangeFinishForStopCallback = undefined;
+                        _this3.dispatchEvent({
+                            type: FINISH
+                        });
+                    };
+                    this._currentArrange.addEventListener(FINISH, this._currentArrangeFinishForStopCallback);
+
+                    //并且移除最后
+                }
+
+                this._currentArrange.stop();
+                this.dispatchEvent({
+                    type: STOP
+                });
+            }
+        }
+    }, {
+        key: "pause",
+        value: function pause() {
+            if (!this._isPlaying || this._isPaused) {
+                return false;
+            }
+            if (this._currentArrange instanceof Arrange) {
+                this._isPaused = true;
+                this._currentArrange.pause();
+                this.dispatchEvent({
+                    type: PAUSE
+                });
+            }
+        }
+    }, {
+        key: "resume",
+        value: function resume() {
+            if (!this._isPlaying || !this._isPaused) {
+                return false;
+            }
+            if (this._currentArrange instanceof Arrange) {
+                this._isPaused = false;
+                this._currentArrange.resume();
+                this.dispatchEvent({
+                    type: RESUME
+                });
+            }
+        }
+    }, {
+        key: "execute",
+        value: function execute() {
+            var _this4 = this;
+
+            var arrange = void 0;
+            var segment = void 0;
+
+            if (arguments.length === 0) {
+                return false;
+            } else if (arguments.length === 1) {
+                segment = arguments.length <= 0 ? undefined : arguments[0];
+            } else {
+                arrange = arguments.length <= 0 ? undefined : arguments[0];
+                segment = arguments.length <= 1 ? undefined : arguments[1];
+            }
+
+            if (!this._isPlaying || !(segment instanceof Segment) || this._executeing) {
+                return false;
+            }
+
+            this._executeing = true;
+
+            var isPaused = this._isPaused;
+
+            //如果存在_executeForPrevFinishCallback就先移除，有了_switching，可能并不需要但是为了保险
+            if (this.hasEventListener(FINISH, this._executeForPrevFinishCallback)) {
+                this.removeEventListener(FINISH, this._executeForPrevFinishCallback);
+            }
+            this._executeForPrevFinishCallback = function () {
+                //如果是暂停的就切换到对应segment后执行完就暂停
+                if (isPaused) {
+                    if (segment.hasEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback)) {
+                        segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                    }
+                    _this4._executeForTargetSegmentFinishCallback = function () {
+                        _this4.pause();
+                        _this4._executeing = false;
+                        segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                        _this4._executeForTargetSegmentFinishCallback = undefined;
+                    };
+                    segment.addEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                } else {
+                    _this4._executeing = false;
+                }
+
+                if (arrange) {
+                    _this4.start(arrange, segment);
+                } else {
+                    _this4.start(segment);
+                }
+
+                _this4.removeEventListener(FINISH, _this4._executeForPrevFinishCallback);
+                _this4._executeForPrevFinishCallback = undefined;
+            };
+            this.addEventListener(FINISH, this._executeForPrevFinishCallback);
+
+            //无论如何先停止
+            this.stop();
+        }
+    }, {
+        key: "switch",
+        value: function _switch() {
+            var _this5 = this;
+
+            var arrange = void 0;
+            var segment = void 0;
+
+            if (arguments.length === 0) {
+                return false;
+            } else if (arguments.length === 1) {
+                segment = arguments.length <= 0 ? undefined : arguments[0];
+            } else {
+                arrange = arguments.length <= 0 ? undefined : arguments[0];
+                segment = arguments.length <= 1 ? undefined : arguments[1];
+            }
+
+            if (!this._isPlaying || !(segment instanceof Segment) || this._switching) {
+                return false;
+            }
+
+            this._switching = true;
+
+            var isPaused = this._isPaused;
+
+            //如果存在_switchFinishCallback就先移除，有了_switching，可能并不需要但是为了保险
+            if (this.hasEventListener(FINISH, this._switchForPrevFinishCallback)) {
+                this.removeEventListener(FINISH, this._switchForPrevFinishCallback);
+            }
+            this._switchForPrevFinishCallback = function () {
+                //如果是暂停的就切换到对应arrange 和 segment后就暂停
+                if (isPaused) {
+                    if (_this5.hasEventListener(START, _this5._switchForStartAfterCallback)) {
+                        _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
+                    }
+                    _this5._switchForStartAfterCallback = function () {
+                        _this5.pause();
+                        _this5._switching = false;
+                        _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
+                        _this5._switchForStartAfterCallback = undefined;
+                    };
+                    _this5.addEventListener(START, _this5._switchForStartAfterCallback);
+                } else {
+                    _this5._switching = false;
+                }
+                if (arrange) {
+                    _this5.start(arrange, segment);
+                } else {
+                    _this5.start(segment);
+                }
+                _this5.removeEventListener(FINISH, _this5._switchForPrevFinishCallback);
+                _this5._switchForPrevFinishCallback = undefined;
+            };
+            this.addEventListener(FINISH, this._switchForPrevFinishCallback);
+
+            //无论如何先停止
+            this.stop();
+        }
+    }]);
+
+    return TimeLine;
+}(EventDispatcher);
+
+
+function arrangeEventBind(arrange) {
+    var _this6 = this;
+
+    arrange.addEventListener(START, function () {
+        if (!_this6._isPlaying) return;
+        _this6._currentArrange = arrange;
+    });
+    // arrange.addEventListener(PAUSE, () => {
+    //     this.dispatchEvent({ type: PAUSE });
+    // });
+    // arrange.addEventListener(RESUME, () => {
+    //     this.dispatchEvent({ type: RESUME });
+    // });
+    // arrange.addEventListener(STOP, () => {
+    //     this.dispatchEvent({ type: STOP });
+    // });
+    // arrange.addEventListener(FINISH, () => {
+    //     //排除特殊的最后一位，最后一位单独处理，如衔接下一位排序
+    //     if (arrange === this._endArrange) return;
+
+    //     this._isPlaying = false;
+    //     this.dispatchEvent({ type: FINISH });
+    // });
+}
+
+TimeLine$1.update = function () {
+    TWEEN.update();
+};
+TimeLine$1.Easing = TWEEN.Easing;
+
+TimeLine$1.Arrange = Arrange;
+TimeLine$1.Segment = Segment;
+
+export default TimeLine$1;

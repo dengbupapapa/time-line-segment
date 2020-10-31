@@ -107,7 +107,7 @@ export default class TimeLine extends EventDispatcher {
         //如果自定义了开始的排序
         if (
             customArrange instanceof Arrange &&
-            this._startArrange.includes(customArrange)
+            this._arrangements.includes(customArrange)
         ) {
             this._startArrange = customArrange;
         } else {
@@ -116,8 +116,19 @@ export default class TimeLine extends EventDispatcher {
         this._endArrange = this._arrangements[length - 1];
 
         //已经循环的次数
+        if (
+            this._endArrange.hasEventListener(
+                FINISH,
+                this._endArrangeEventListenerFn
+            )
+        ) {
+            this._endArrange.removeEventListener(
+                FINISH,
+                this._endArrangeEventListenerFn
+            );
+        }
         let repeat = 0;
-        let endArrangeEventListenerFn = () => {
+        this._endArrangeEventListenerFn = () => {
             if (!this._isPlaying) return;
             repeat++;
             //如果完成规定次数则停止
@@ -126,23 +137,28 @@ export default class TimeLine extends EventDispatcher {
                 //并且移除该事件
                 this._endArrange.removeEventListener(
                     FINISH,
-                    endArrangeEventListenerFn
+                    this._endArrangeEventListenerFn
                 );
+                this._endArrangeEventListenerFn = undefined;
                 //如果是自然结束
                 if (repeat >= this._repeat && !this._needStop) {
-                    this.dispatchEvent({ type: COMPLETE });
+                    this.dispatchEvent({
+                        type: COMPLETE
+                    });
                 }
                 //如果结束，当前排序是最后排序则触发事件
                 if (this._currentArrange === this._endArrange) {
                     this._needStop = false;
-                    this.dispatchEvent({ type: FINISH });
+                    this.dispatchEvent({
+                        type: FINISH
+                    });
                 }
                 //否则再次重头开始
             } else {
                 this._startArrange.start();
             }
         };
-        this._endArrange.addEventListener(FINISH, endArrangeEventListenerFn);
+        this._endArrange.addEventListener(FINISH, this._endArrangeEventListenerFn);
 
         //开始事件
         if (
@@ -162,7 +178,9 @@ export default class TimeLine extends EventDispatcher {
                 this._startArrangeCompleteCallback
             );
             this._startArrangeCompleteCallback = undefined;
-            this.dispatchEvent({ type: START });
+            this.dispatchEvent({
+                type: START
+            });
         };
         this._startArrange.addEventListener(
             START,
@@ -197,13 +215,38 @@ export default class TimeLine extends EventDispatcher {
             }
             let currentArrange = this._currentArrange;
             let endArrange = this._endArrange;
-            this._currentArrange.stop();
-            this.dispatchEvent({ type: STOP });
+
             //如果当前排序不是最后一个片段，则手动触发结束事件
             if (currentArrange !== endArrange) {
                 this._needStop = false;
-                this.dispatchEvent({ type: FINISH });
+                if (
+                    this._currentArrange.hasEventListener(
+                        FINISH,
+                        this._currentArrangeFinishForStopCallback
+                    )
+                ) {
+                    this._currentArrange.removeEventListener(
+                        FINISH,
+                        this._currentArrangeFinishForStopCallback
+                    );
+                }
+                this._currentArrangeFinishForStopCallback = () => {
+                    this._currentArrange.removeEventListener(FINISH, this._currentArrangeFinishForStopCallback);
+                    this._currentArrangeFinishForStopCallback = undefined;
+                    this.dispatchEvent({
+                        type: FINISH
+                    });
+                }
+                this._currentArrange.addEventListener(FINISH, this._currentArrangeFinishForStopCallback);
+
+                //并且移除最后
+
             }
+
+            this._currentArrange.stop();
+            this.dispatchEvent({
+                type: STOP
+            });
         }
     }
 
@@ -214,7 +257,9 @@ export default class TimeLine extends EventDispatcher {
         if (this._currentArrange instanceof Arrange) {
             this._isPaused = true;
             this._currentArrange.pause();
-            this.dispatchEvent({ type: PAUSE });
+            this.dispatchEvent({
+                type: PAUSE
+            });
         }
     }
 
@@ -225,29 +270,13 @@ export default class TimeLine extends EventDispatcher {
         if (this._currentArrange instanceof Arrange) {
             this._isPaused = false;
             this._currentArrange.resume();
-            this.dispatchEvent({ type: RESUME });
+            this.dispatchEvent({
+                type: RESUME
+            });
         }
     }
 
-    execute(arrange, segment) {
-        if (
-            !this._isPlaying ||
-            !(segment instanceof Segment) ||
-            this._switching
-        ) {
-            return false;
-        }
-
-        this._switching = true;
-
-        let isPaused = this._isPaused;
-
-        if (isPaused) {
-        } else {
-        }
-    }
-
-    switch(...target) {
+    execute(...target) {
         let arrange;
         let segment;
 
@@ -260,8 +289,85 @@ export default class TimeLine extends EventDispatcher {
             segment = target[1];
         }
 
-        if (
-            !this._isPlaying ||
+        if (!this._isPlaying ||
+            !(segment instanceof Segment) ||
+            this._executeing
+        ) {
+            return false;
+        }
+
+        this._executeing = true;
+
+        let isPaused = this._isPaused;
+
+        //如果存在_executeForPrevFinishCallback就先移除，有了_switching，可能并不需要但是为了保险
+        if (this.hasEventListener(FINISH, this._executeForPrevFinishCallback)) {
+            this.removeEventListener(FINISH, this._executeForPrevFinishCallback);
+        }
+        this._executeForPrevFinishCallback = () => {
+            //如果是暂停的就切换到对应segment后执行完就暂停
+            if (isPaused) {
+                if (
+                    segment.hasEventListener(
+                        FINISH,
+                        this._executeForTargetSegmentFinishCallback
+                    )
+                ) {
+                    segment.removeEventListener(
+                        FINISH,
+                        this._executeForTargetSegmentFinishCallback
+                    );
+                }
+                this._executeForTargetSegmentFinishCallback = () => {
+                    this.pause();
+                    this._executeing = false;
+                    segment.removeEventListener(
+                        FINISH,
+                        this._executeForTargetSegmentFinishCallback
+                    );
+                    this._executeForTargetSegmentFinishCallback = undefined;
+                };
+                segment.addEventListener(
+                    FINISH,
+                    this._executeForTargetSegmentFinishCallback
+                );
+            } else {
+                this._executeing = false;
+            }
+
+            if (arrange) {
+                this.start(arrange, segment);
+            } else {
+                this.start(segment);
+            }
+
+            this.removeEventListener(
+                FINISH,
+                this._executeForPrevFinishCallback
+            );
+            this._executeForPrevFinishCallback = undefined;
+
+        };
+        this.addEventListener(FINISH, this._executeForPrevFinishCallback);
+
+        //无论如何先停止
+        this.stop();
+    }
+
+    switch (...target) {
+        let arrange;
+        let segment;
+
+        if (target.length === 0) {
+            return false;
+        } else if (target.length === 1) {
+            segment = target[0];
+        } else {
+            arrange = target[0];
+            segment = target[1];
+        }
+
+        if (!this._isPlaying ||
             !(segment instanceof Segment) ||
             this._switching
         ) {
