@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <style type="text/css">
+        body{
+            margin: 0;
+        }
+        .block{
+            position: absolute;
+            left: 0;
+            /*width: 50px;
+            height: 50px;*/
+            width: 10%;
+            padding-bottom: 10%;
+            height: 0;
+            border-radius: 10px;
+        }
+        .yellow{
+            margin-top:0;
+            background: yellow;
+            border: solid 1px yellow;
+        }
+        .red{
+            margin-top:calc(10% + 2px);
+            background: red;
+            border: solid 1px red;
+        }
+        .blue{
+            margin-top:calc(20% + 4px);
+            background: blue;
+            border: solid 1px blue;
+        }
+        .black{
+            margin-top:calc(30% + 6px);
+            background: black;
+            border: solid 1px black;
+        }
+        .violet{
+            margin-top:calc(40% + 8px);
+            background: violet;
+            border: solid 1px violet;
+        }
+
+        .griddings{
+            display: flex;
+        }
+
+        .gridding-box{
+            display: flex;
+            flex-wrap: wrap;
+            box-sizing: border-box;
+            position: relative;
+            margin-right: 5%;
+            flex: 1
+        }
+        .gridding{
+            /*width: 50px;
+            height: 50px;*/
+            width: 10%;
+            padding-bottom: 10%;
+            height: 0;
+            border: solid 1px #999;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <button id="arrangeStart">arrange开始</button>
+        <button id="arrangeStop">arrange停止</button>
+        <button id="arrangePause">arrange暂停</button>
+        <button id="arrangeResume">arrange继续</button>
+    </div>
+    <div id="griddingBox" class="griddings"></div>
+    <script type="text/javascript" src="./index.test.js"></script>
+    <script type="text/javascript">
+
+        function createElement(k){
+            let box = document.createElement('div');
+            box.className = 'gridding-box';
+
+            //插入网格
+            for(let i = 0; i<150; i++){
+                let div = document.createElement("div");
+                div.className='gridding';
+                box.appendChild(div);
+
+            }
+            let red = document.createElement("div");
+            red.className='red block';
+            red.id = 'red' + k;
+
+            let yellow = document.createElement("div");
+            yellow.className='yellow block';
+            yellow.id = 'yellow' + k;
+
+            let blue = document.createElement("div");
+            blue.className='blue block';
+            blue.id = 'blue' + k;
+
+            let black = document.createElement("div");
+            black.className='black block';
+            black.id = 'black' + k;
+
+            let violet = document.createElement("div");
+            violet.className='violet block';
+            violet.id = 'violet' + k;
+
+            box.appendChild(red);
+            box.appendChild(yellow);
+            box.appendChild(blue);
+            box.appendChild(black);
+            box.appendChild(violet);
+
+            let griddingBox = document.getElementById('griddingBox');
+            griddingBox.appendChild(box);
+
+        }
+
+
+        let time1 = 1844;
+        let startTime1 = 1500;
+        let endTime1 = 2573;
+        let startTime2 = 1333;
+        let endTime2 = 1957;
+        let startTime3 = 1501;
+        let endTime3 = 2211;
+
+        let startTime4 = 1501;
+        let endTime4 = 2211;
+
+        window.onload = function () {
+
+            let Segment = TimeLine.Segment;
+            let Arrange = TimeLine.Arrange;
+
+            let segments = [];
+            for (let j = 0; j < 3; j++) {
+
+                createElement(j);
+
+                let segment = new Segment('name'+j);
+
+                //添加时间点事务
+                segment
+                    .transaction(startTime4, endTime4, function (time, elapsed) {
+                        document.getElementById('violet'+j).style.left = (elapsed*100) + '%';
+                        document.getElementById('violet'+j).style.transform=`rotate(${(elapsed*360)}deg)`;
+                    }, {
+                        easing:TimeLine.Easing.Bounce.In,
+                        name:'violet'+j
+                    })
+                    .transaction(time1, function (time, elapsed, globalPercent) {
+                        document.getElementById('red'+j).style.left = (globalPercent*100) + '%';
+                        document.getElementById('red'+j).style.transform=`rotate(${(globalPercent*360)}deg)`;
+                    })
+                    .transaction(startTime1, endTime1, function (time, elapsed) {
+                        document.getElementById('yellow'+j).style.left = (elapsed*100) + '%';
+                        document.getElementById('yellow'+j).style.transform=`rotate(${(elapsed*360)}deg)`;
+                    }, {
+                        // easing:TimeLine.Easing.Elastic.InOut,
+                        name:'yellow'+j
+                    })
+                    .transaction(startTime2, endTime2, function (time, elapsed) {
+                        document.getElementById('blue'+j).style.left = (elapsed*100) + '%';
+                        document.getElementById('blue'+j).style.transform=`rotate(${(elapsed*360)}deg)`;
+                    }, {
+                        easing:TimeLine.Easing.Exponential.InOut,
+                        name:'blue'+j
+                    })
+                    .transaction(startTime3, endTime3, function (time, elapsed, globalPercent) {
+                        document.getElementById('black'+j).style.left = (globalPercent*100) + '%';
+                        document.getElementById('black'+j).style.transform=`rotate(${(globalPercent*360)}deg)`;
+                    }, {
+                        easing:TimeLine.Easing.Bounce.InOut,
+                        name:'black'+j
+                    })
+                    .addEventListener('start', (a)=>{
+                        // console.log('onStart',a);
+                    })
+                    .addEventListener('stop', (a)=>{
+                        // console.log('onStop',a);
+                    })
+                    .addEventListener('complete', (a)=>{
+                        // console.log('onComplete',a);
+                    })
+                    .addEventListener('finish', (a)=>{
+                        // console.log('onFinish',a);
+                    })
+                    .addEventListener('pause', (a)=>{
+                        // console.log('onPause',a);
+                    })
+                    .addEventListener('resume', (a)=>{
+                        // console.log('onResume',a);
+                    });
+                segments.push(segment);
+            }
+            let arrange1 = new Arrange(segments);
+            let arrange2 = new Arrange(segments);
+            arrange2.back();
+            arrange1.chain(arrange2);
+            let arrange = arrange1;
+
+            window.arrange = arrange;
+
+
+            arrange1
+                .addEventListener('start', (a)=>{
+                    console.log('onStart',a);
+                    arrange = arrange1
+                })
+                .addEventListener('stop', (a)=>{
+                    console.log('onStop',a);
+                })
+                .addEventListener('finish', (a)=>{
+                    console.log('onFinish',a);
+                })
+                .addEventListener('complete', (a)=>{
+                    console.log('onComplete',a);
+                })
+                .addEventListener('pause', (a)=>{
+                    console.log('onPause',a);
+                })
+                .addEventListener('resume', (a)=>{
+                    console.log('onResume',a);
+                });
+            arrange2
+                .addEventListener('start', (a)=>{
+                    arrange = arrange2
+                    console.log('onStart2',a);
+                })
+                .addEventListener('stop', (a)=>{
+                    console.log('onStop2',a);
+                })
+                .addEventListener('finish', (a)=>{
+                    console.log('onFinish2',a);
+                })
+                .addEventListener('complete', (a)=>{
+                    console.log('onComplete2',a);
+                })
+                .addEventListener('pause', (a)=>{
+                    console.log('onPause2',a);
+                })
+                .addEventListener('resume', (a)=>{
+                    console.log('onResume2',a);
+                });
+            document.getElementById('arrangeStart').addEventListener('click',function(){
+                arrange.start();
+            });
+            document.getElementById('arrangeStop').addEventListener('click',function(){
+                arrange.stop();
+            });
+            document.getElementById('arrangePause').addEventListener('click',function(){
+                arrange.pause();
+            });
+            document.getElementById('arrangeResume').addEventListener('click',function(){
+                arrange.resume();
+            });
+
+            // document.getElementById('forward').addEventListener('click',function(){
+            //     arrange.forward();
+            // });
+
+            animate();
+
+            function animate() {
+                requestAnimationFrame(animate);
+                // [...]
+                TimeLine.update();
+                // [...]
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+    "presets": [
+        ["es2015-rollup"],
+        "stage-0"
+    ],
+    "plugins":[
+        "syntax-dynamic-import",
+        "transform-decorators-legacy",
+        ["transform-runtime", {
+            "regenerator": true
+        }]
+    ]
+}
