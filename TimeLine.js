@@ -255,11 +255,29 @@ export default class TimeLine extends EventDispatcher {
             return false;
         }
         if (this._currentArrange instanceof Arrange) {
-            this._isPaused = true;
+
+            if (
+                this._currentArrange.hasEventListener(
+                    PAUSE,
+                    this._currentArrangePauseCallback
+                )
+            ) {
+                this._currentArrange.removeEventListener(
+                    PAUSE,
+                    this._currentArrangePauseCallback
+                );
+            }
+            this._currentArrangePauseCallback = () => {
+                this._isPaused = true;
+                this._currentArrange.removeEventListener(PAUSE, this._currentArrangePauseCallback);
+                this._currentArrangePauseCallback = undefined;
+                this.dispatchEvent({
+                    type: PAUSE
+                });
+            }
+            this._currentArrange.addEventListener(PAUSE, this._currentArrangePauseCallback);
+
             this._currentArrange.pause();
-            this.dispatchEvent({
-                type: PAUSE
-            });
         }
     }
 
@@ -268,11 +286,27 @@ export default class TimeLine extends EventDispatcher {
             return false;
         }
         if (this._currentArrange instanceof Arrange) {
-            this._isPaused = false;
+            if (
+                this._currentArrange.hasEventListener(
+                    RESUME,
+                    this._currentArrangeResumeCallback
+                )
+            ) {
+                this._currentArrange.removeEventListener(
+                    RESUME,
+                    this._currentArrangeResumeCallback
+                );
+            }
+            this._currentArrangeResumeCallback = () => {
+                this._isPaused = false;
+                this._currentArrange.removeEventListener(RESUME, this._currentArrangeResumeCallback);
+                this._currentArrangeResumeCallback = undefined;
+                this.dispatchEvent({
+                    type: RESUME
+                });
+            }
+            this._currentArrange.addEventListener(RESUME, this._currentArrangeResumeCallback);
             this._currentArrange.resume();
-            this.dispatchEvent({
-                type: RESUME
-            });
         }
     }
 

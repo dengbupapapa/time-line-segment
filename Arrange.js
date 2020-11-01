@@ -241,9 +241,6 @@ export default class Arrange extends EventDispatcher {
             return false;
         }
         if (this._currentSegment instanceof Segment) {
-            if (this._currentSegment !== this._endSegment) {
-                this._isPlaying = false;
-            }
 
             if (this._currentSegment !== this._endSegment) {
 
@@ -259,13 +256,14 @@ export default class Arrange extends EventDispatcher {
                     );
                 }
                 this._currentSegmentFinishForStopCallback = () => {
+                    this._isPlaying = false;
                     this._currentSegment.removeEventListener(FINISH, this._currentSegmentFinishForStopCallback);
                     this._currentSegmentFinishForStopCallback = undefined;
                     this.dispatchEvent({
                         type: FINISH
                     });
                 }
-                this._currentSegment.addEventListener(FINISH, this._currentSegmentFinishForStopCallback)
+                this._currentSegment.addEventListener(FINISH, this._currentSegmentFinishForStopCallback);1
                 // this.dispatchEvent({
                 //     type: FINISH
                 // });
@@ -282,11 +280,27 @@ export default class Arrange extends EventDispatcher {
             return false;
         }
         if (this._currentSegment instanceof Segment) {
-            this._isPaused = true;
+            if (
+                this._currentSegment.hasEventListener(
+                    PAUSE,
+                    this._currentSegmentPauseCallback
+                )
+            ) {
+                this._currentSegment.removeEventListener(
+                    PAUSE,
+                    this._currentSegmentPauseCallback
+                );
+            }
+            this._currentSegmentPauseCallback = () => {
+                this._isPaused = true;
+                this._currentSegment.removeEventListener(PAUSE, this._currentSegmentPauseCallback);
+                this._currentSegmentPauseCallback = undefined;
+                this.dispatchEvent({
+                    type: PAUSE
+                });
+            }
+            this._currentSegment.addEventListener(PAUSE, this._currentSegmentPauseCallback);
             this._currentSegment.pause();
-            this.dispatchEvent({
-                type: PAUSE
-            });
         }
     }
 
@@ -295,11 +309,27 @@ export default class Arrange extends EventDispatcher {
             return false;
         }
         if (this._currentSegment instanceof Segment) {
-            this._isPaused = false;
+            if (
+                this._currentSegment.hasEventListener(
+                    RESUME,
+                    this._currentSegmentResumeCallback
+                )
+            ) {
+                this._currentSegment.removeEventListener(
+                    RESUME,
+                    this._currentSegmentResumeCallback
+                );
+            }
+            this._currentSegmentResumeCallback = () => {
+                this._isPaused = false;
+                this._currentSegment.removeEventListener(RESUME, this._currentSegmentResumeCallback);
+                this._currentSegmentResumeCallback = undefined;
+                this.dispatchEvent({
+                    type: RESUME
+                });
+            }
+            this._currentSegment.addEventListener(RESUME, this._currentSegmentResumeCallback);
             this._currentSegment.resume();
-            this.dispatchEvent({
-                type: RESUME
-            });
         }
     }
 

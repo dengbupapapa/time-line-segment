@@ -3863,9 +3863,6 @@
                             return false;
                         }
                         if (this._currentSegment instanceof Segment) {
-                            if (this._currentSegment !== this._endSegment) {
-                                this._isPlaying = false;
-                            }
 
                             if (this._currentSegment !== this._endSegment) {
 
@@ -3873,14 +3870,14 @@
                                     this._currentSegment.removeEventListener(FINISH, this._currentSegmentFinishForStopCallback);
                                 }
                                 this._currentSegmentFinishForStopCallback = function () {
+                                    _this3._isPlaying = false;
                                     _this3._currentSegment.removeEventListener(FINISH, _this3._currentSegmentFinishForStopCallback);
                                     _this3._currentSegmentFinishForStopCallback = undefined;
                                     _this3.dispatchEvent({
                                         type: FINISH
                                     });
                                 };
-                                this._currentSegment.addEventListener(FINISH, this._currentSegmentFinishForStopCallback);
-                                // this.dispatchEvent({
+                                this._currentSegment.addEventListener(FINISH, this._currentSegmentFinishForStopCallback);                    // this.dispatchEvent({
                                 //     type: FINISH
                                 // });
                             }
@@ -3893,29 +3890,49 @@
                 }, {
                     key: "pause",
                     value: function pause() {
+                        var _this4 = this;
+
                         if (!this._isPlaying || this._isPaused) {
                             return false;
                         }
                         if (this._currentSegment instanceof Segment) {
-                            this._isPaused = true;
+                            if (this._currentSegment.hasEventListener(PAUSE, this._currentSegmentPauseCallback)) {
+                                this._currentSegment.removeEventListener(PAUSE, this._currentSegmentPauseCallback);
+                            }
+                            this._currentSegmentPauseCallback = function () {
+                                _this4._isPaused = true;
+                                _this4._currentSegment.removeEventListener(PAUSE, _this4._currentSegmentPauseCallback);
+                                _this4._currentSegmentPauseCallback = undefined;
+                                _this4.dispatchEvent({
+                                    type: PAUSE
+                                });
+                            };
+                            this._currentSegment.addEventListener(PAUSE, this._currentSegmentPauseCallback);
                             this._currentSegment.pause();
-                            this.dispatchEvent({
-                                type: PAUSE
-                            });
                         }
                     }
                 }, {
                     key: "resume",
                     value: function resume() {
+                        var _this5 = this;
+
                         if (!this._isPlaying || !this._isPaused) {
                             return false;
                         }
                         if (this._currentSegment instanceof Segment) {
-                            this._isPaused = false;
+                            if (this._currentSegment.hasEventListener(RESUME, this._currentSegmentResumeCallback)) {
+                                this._currentSegment.removeEventListener(RESUME, this._currentSegmentResumeCallback);
+                            }
+                            this._currentSegmentResumeCallback = function () {
+                                _this5._isPaused = false;
+                                _this5._currentSegment.removeEventListener(RESUME, _this5._currentSegmentResumeCallback);
+                                _this5._currentSegmentResumeCallback = undefined;
+                                _this5.dispatchEvent({
+                                    type: RESUME
+                                });
+                            };
+                            this._currentSegment.addEventListener(RESUME, this._currentSegmentResumeCallback);
                             this._currentSegment.resume();
-                            this.dispatchEvent({
-                                type: RESUME
-                            });
                         }
                     }
                 }, {
@@ -3935,7 +3952,7 @@
                 }, {
                     key: "execute",
                     value: function execute(segment) {
-                        var _this4 = this;
+                        var _this6 = this;
 
                         if (!this._isPlaying || !(segment instanceof Segment) || this._executeing) {
                             return false;
@@ -3952,24 +3969,24 @@
                         this._executeForPrevFinishCallback = function () {
                             //如果是暂停的就切换到对应segment后执行完就暂停
                             if (isPaused) {
-                                if (segment.hasEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback)) {
-                                    segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                                if (segment.hasEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback)) {
+                                    segment.removeEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback);
                                 }
-                                _this4._executeForTargetSegmentFinishCallback = function () {
-                                    _this4.pause();
-                                    _this4._executeing = false;
-                                    segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
-                                    _this4._executeForTargetSegmentFinishCallback = undefined;
+                                _this6._executeForTargetSegmentFinishCallback = function () {
+                                    _this6.pause();
+                                    _this6._executeing = false;
+                                    segment.removeEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback);
+                                    _this6._executeForTargetSegmentFinishCallback = undefined;
                                 };
-                                segment.addEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                                segment.addEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback);
                             } else {
-                                _this4._executeing = false;
+                                _this6._executeing = false;
                             }
 
-                            _this4.start(segment);
+                            _this6.start(segment);
 
-                            _this4.removeEventListener(FINISH, _this4._executeForPrevFinishCallback);
-                            _this4._executeForPrevFinishCallback = undefined;
+                            _this6.removeEventListener(FINISH, _this6._executeForPrevFinishCallback);
+                            _this6._executeForPrevFinishCallback = undefined;
                         };
                         this.addEventListener(FINISH, this._executeForPrevFinishCallback);
 
@@ -3979,7 +3996,7 @@
                 }, {
                     key: "switch",
                     value: function _switch(segment) {
-                        var _this5 = this;
+                        var _this7 = this;
 
                         if (!this._isPlaying || !(segment instanceof Segment) || this._switching) {
                             return false;
@@ -3996,22 +4013,22 @@
                         this._switchForPrevFinishCallback = function () {
                             //如果是暂停的就切换到对应segment后就暂停
                             if (isPaused) {
-                                if (_this5.hasEventListener(START, _this5._switchForStartAfterCallback)) {
-                                    _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
+                                if (_this7.hasEventListener(START, _this7._switchForStartAfterCallback)) {
+                                    _this7.removeEventListener(START, _this7._switchForStartAfterCallback);
                                 }
-                                _this5._switchForStartAfterCallback = function () {
-                                    _this5.pause();
-                                    _this5._switching = false;
-                                    _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
-                                    _this5._switchForStartAfterCallback = undefined;
+                                _this7._switchForStartAfterCallback = function () {
+                                    _this7.pause();
+                                    _this7._switching = false;
+                                    _this7.removeEventListener(START, _this7._switchForStartAfterCallback);
+                                    _this7._switchForStartAfterCallback = undefined;
                                 };
-                                _this5.addEventListener(START, _this5._switchForStartAfterCallback);
+                                _this7.addEventListener(START, _this7._switchForStartAfterCallback);
                             } else {
-                                _this5._switching = false;
+                                _this7._switching = false;
                             }
-                            _this5.start(segment);
-                            _this5.removeEventListener(FINISH, _this5._switchForPrevFinishCallback);
-                            _this5._switchForPrevFinishCallback = undefined;
+                            _this7.start(segment);
+                            _this7.removeEventListener(FINISH, _this7._switchForPrevFinishCallback);
+                            _this7._switchForPrevFinishCallback = undefined;
                         };
                         this.addEventListener(FINISH, this._switchForPrevFinishCallback);
 
@@ -4309,35 +4326,57 @@
                 }, {
                     key: "pause",
                     value: function pause() {
+                        var _this4 = this;
+
                         if (!this._isPlaying || this._isPaused) {
                             return false;
                         }
                         if (this._currentArrange instanceof Arrange) {
-                            this._isPaused = true;
+
+                            if (this._currentArrange.hasEventListener(PAUSE, this._currentArrangePauseCallback)) {
+                                this._currentArrange.removeEventListener(PAUSE, this._currentArrangePauseCallback);
+                            }
+                            this._currentArrangePauseCallback = function () {
+                                _this4._isPaused = true;
+                                _this4._currentArrange.removeEventListener(PAUSE, _this4._currentArrangePauseCallback);
+                                _this4._currentArrangePauseCallback = undefined;
+                                _this4.dispatchEvent({
+                                    type: PAUSE
+                                });
+                            };
+                            this._currentArrange.addEventListener(PAUSE, this._currentArrangePauseCallback);
+
                             this._currentArrange.pause();
-                            this.dispatchEvent({
-                                type: PAUSE
-                            });
                         }
                     }
                 }, {
                     key: "resume",
                     value: function resume() {
+                        var _this5 = this;
+
                         if (!this._isPlaying || !this._isPaused) {
                             return false;
                         }
                         if (this._currentArrange instanceof Arrange) {
-                            this._isPaused = false;
+                            if (this._currentArrange.hasEventListener(RESUME, this._currentArrangeResumeCallback)) {
+                                this._currentArrange.removeEventListener(RESUME, this._currentArrangeResumeCallback);
+                            }
+                            this._currentArrangeResumeCallback = function () {
+                                _this5._isPaused = false;
+                                _this5._currentArrange.removeEventListener(RESUME, _this5._currentArrangeResumeCallback);
+                                _this5._currentArrangeResumeCallback = undefined;
+                                _this5.dispatchEvent({
+                                    type: RESUME
+                                });
+                            };
+                            this._currentArrange.addEventListener(RESUME, this._currentArrangeResumeCallback);
                             this._currentArrange.resume();
-                            this.dispatchEvent({
-                                type: RESUME
-                            });
                         }
                     }
                 }, {
                     key: "execute",
                     value: function execute() {
-                        var _this4 = this;
+                        var _this6 = this;
 
                         var arrange = void 0;
                         var segment = void 0;
@@ -4366,28 +4405,28 @@
                         this._executeForPrevFinishCallback = function () {
                             //如果是暂停的就切换到对应segment后执行完就暂停
                             if (isPaused) {
-                                if (segment.hasEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback)) {
-                                    segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                                if (segment.hasEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback)) {
+                                    segment.removeEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback);
                                 }
-                                _this4._executeForTargetSegmentFinishCallback = function () {
-                                    _this4.pause();
-                                    _this4._executeing = false;
-                                    segment.removeEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
-                                    _this4._executeForTargetSegmentFinishCallback = undefined;
+                                _this6._executeForTargetSegmentFinishCallback = function () {
+                                    _this6.pause();
+                                    _this6._executeing = false;
+                                    segment.removeEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback);
+                                    _this6._executeForTargetSegmentFinishCallback = undefined;
                                 };
-                                segment.addEventListener(FINISH, _this4._executeForTargetSegmentFinishCallback);
+                                segment.addEventListener(FINISH, _this6._executeForTargetSegmentFinishCallback);
                             } else {
-                                _this4._executeing = false;
+                                _this6._executeing = false;
                             }
 
                             if (arrange) {
-                                _this4.start(arrange, segment);
+                                _this6.start(arrange, segment);
                             } else {
-                                _this4.start(segment);
+                                _this6.start(segment);
                             }
 
-                            _this4.removeEventListener(FINISH, _this4._executeForPrevFinishCallback);
-                            _this4._executeForPrevFinishCallback = undefined;
+                            _this6.removeEventListener(FINISH, _this6._executeForPrevFinishCallback);
+                            _this6._executeForPrevFinishCallback = undefined;
                         };
                         this.addEventListener(FINISH, this._executeForPrevFinishCallback);
 
@@ -4397,7 +4436,7 @@
                 }, {
                     key: "switch",
                     value: function _switch() {
-                        var _this5 = this;
+                        var _this7 = this;
 
                         var arrange = void 0;
                         var segment = void 0;
@@ -4426,26 +4465,26 @@
                         this._switchForPrevFinishCallback = function () {
                             //如果是暂停的就切换到对应arrange 和 segment后就暂停
                             if (isPaused) {
-                                if (_this5.hasEventListener(START, _this5._switchForStartAfterCallback)) {
-                                    _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
+                                if (_this7.hasEventListener(START, _this7._switchForStartAfterCallback)) {
+                                    _this7.removeEventListener(START, _this7._switchForStartAfterCallback);
                                 }
-                                _this5._switchForStartAfterCallback = function () {
-                                    _this5.pause();
-                                    _this5._switching = false;
-                                    _this5.removeEventListener(START, _this5._switchForStartAfterCallback);
-                                    _this5._switchForStartAfterCallback = undefined;
+                                _this7._switchForStartAfterCallback = function () {
+                                    _this7.pause();
+                                    _this7._switching = false;
+                                    _this7.removeEventListener(START, _this7._switchForStartAfterCallback);
+                                    _this7._switchForStartAfterCallback = undefined;
                                 };
-                                _this5.addEventListener(START, _this5._switchForStartAfterCallback);
+                                _this7.addEventListener(START, _this7._switchForStartAfterCallback);
                             } else {
-                                _this5._switching = false;
+                                _this7._switching = false;
                             }
                             if (arrange) {
-                                _this5.start(arrange, segment);
+                                _this7.start(arrange, segment);
                             } else {
-                                _this5.start(segment);
+                                _this7.start(segment);
                             }
-                            _this5.removeEventListener(FINISH, _this5._switchForPrevFinishCallback);
-                            _this5._switchForPrevFinishCallback = undefined;
+                            _this7.removeEventListener(FINISH, _this7._switchForPrevFinishCallback);
+                            _this7._switchForPrevFinishCallback = undefined;
                         };
                         this.addEventListener(FINISH, this._switchForPrevFinishCallback);
 
@@ -4459,11 +4498,11 @@
 
 
             function arrangeEventBind(arrange) {
-                var _this6 = this;
+                var _this8 = this;
 
                 arrange.addEventListener(START, function () {
-                    if (!_this6._isPlaying) return;
-                    _this6._currentArrange = arrange;
+                    if (!_this8._isPlaying) return;
+                    _this8._currentArrange = arrange;
                 });
                 // arrange.addEventListener(PAUSE, () => {
                 //     this.dispatchEvent({ type: PAUSE });
