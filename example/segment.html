@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <style type="text/css">
+        body{
+            margin: 0;
+        }
+        .block{
+            position: absolute;
+            left: 0;
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+        }
+        #red{
+            top:0px;
+            background: red;
+        }
+        #yellow{
+            top:50px;
+            background: yellow;
+        }
+        #blue{
+            top:100px;
+            background: blue;
+        }
+        #black{
+            top:150px;
+            background: black;
+        }
+        #violet{
+            top:200px;
+            background: violet;
+        }
+
+        .gridding-box{
+            display: flex;
+            flex-wrap: wrap;
+            border: solid 1px #999;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .gridding{
+            width: 50px;
+            height: 50px;
+            border: solid 1px #999;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <button id="start">开始</button>
+        <button id="forceStart">强制开始</button>
+        <button id="stop">停止</button>
+        <button id="pause">暂停</button>
+        <button id="resume">继续</button>
+        <button id="playback">倒放</button>
+        <button id="forcePlayback">强制倒放</button>
+    </div>
+    <div id="griddingBox" class="gridding-box">
+        <div class="block" id="red"></div>
+        <div class="block" id="yellow"></div>
+        <div class="block" id="blue"></div>
+        <div class="block" id="black"></div>
+        <div class="block" id="violet"></div>
+    </div>
+    <script type="text/javascript" src="./index.test.js"></script>
+    <script type="text/javascript">
+        window.onload = function () {
+
+            let griddingBox = document.getElementById('griddingBox');
+
+            //插入网格
+            for(let i = 0; i<500; i++){
+                let div = document.createElement("div");
+                div.className='gridding';
+                griddingBox.appendChild(div);
+            }
+
+
+            let Segment = TimeLine.Segment;
+            let segment = new Segment();
+
+            window.segment = segment;
+
+            document.getElementById('start').addEventListener('click',function(){
+                segment.start();
+            })
+            document.getElementById('forceStart').addEventListener('click',function(){
+                segment.forceStart();
+            })
+
+
+            document.getElementById('stop').addEventListener('click',function(){
+                segment.stop();
+            })
+
+
+            document.getElementById('pause').addEventListener('click',function(){
+                segment.pause();
+            })
+
+
+            document.getElementById('resume').addEventListener('click',function(){
+                segment.resume();
+            })
+
+            document.getElementById('playback').addEventListener('click',function(){
+                segment.playback();
+            })
+
+            document.getElementById('forcePlayback').addEventListener('click',function(){
+                segment.forcePlayback();
+            })
+
+
+            //添加时间点事务
+            let time1 = 14320;
+            let time2 = 8444;
+            let startTime1 = 0;
+            let endTime1 = 15730;
+            let startTime2 = 333;
+            let endTime2 = 9573;
+            let startTime3 = 5011;
+            let endTime3 = 12111;
+
+            let startTime4 = 5011;
+            let endTime4 = 12111;
+
+
+            segment
+                .transaction(startTime4, endTime4, function (time, elapsed, globalPercent) {
+                    document.getElementById('violet').style.left = (startTime4+(endTime4-startTime4)*elapsed)/10+'px';
+                    document.getElementById('violet').style.transform=`rotate(${(startTime4+(endTime4-startTime4)*elapsed)/10}deg)`;
+                }, {
+                    easing:TimeLine.Easing.Bounce.In,
+                    name:'violet'
+                })
+                .transaction(time1, function (time, elapsed, globalPercent) {
+                    document.getElementById('red').style.left = time1/10+'px';
+                    document.getElementById('red').style.transform=`rotate(${time1/10}deg)`;
+                })
+                // .transaction(time2, function () {
+                //     document.getElementById('violet').style.left = time2/10+'px';
+                //     document.getElementById('violet').style.transform=`rotate(${time2/10}deg)`;
+                // })
+                .transaction(startTime1, endTime1, function (time, elapsed, globalPercent) {
+                    document.getElementById('yellow').style.left = (startTime1+(endTime1-startTime1)*elapsed)/10+'px';
+                    document.getElementById('yellow').style.transform=`rotate(${(startTime1+(endTime1-startTime1)*elapsed)/10}deg)`;
+                }, {
+                    // easing:TimeLine.Easing.Elastic.InOut,
+                    name:'yellow'
+                })
+                .transaction(startTime2, endTime2, function (time, elapsed, globalPercent) {
+                    document.getElementById('blue').style.left = (startTime2+(endTime2-startTime2)*elapsed)/10+'px';
+                    document.getElementById('blue').style.transform=`rotate(${(startTime2+(endTime2-startTime2)*elapsed)/10}deg)`;
+                }, {
+                    easing:TimeLine.Easing.Exponential.InOut,
+                    name:'blue'
+                })
+                .transaction(startTime3, endTime3, function (time, elapsed, globalPercent) {
+                    document.getElementById('black').style.left = (startTime3+(endTime3-startTime3)*elapsed)/10+'px';
+                    document.getElementById('black').style.transform=`rotate(${(startTime3+(endTime3-startTime3)*elapsed)/10}deg)`;
+                }, {
+                    easing:TimeLine.Easing.Bounce.InOut,
+                    name:'black'
+                })
+                .addEventListener('start', (a,b)=>{
+                    console.log('onStart',a,b);
+                })
+                .addEventListener('stop', (a,b)=>{
+                    console.log('onStop',a,b);
+                })
+                .addEventListener('complete', (a,b)=>{
+                    console.log('onComplete',a,b);
+                })
+                .addEventListener('finish', (a,b)=>{
+                    console.log('onFinish',a,b);
+                })
+                .addEventListener('pause', (a,b)=>{
+                    console.log('onPause',a,b);
+                })
+                .addEventListener('resume', (a,b)=>{
+                    console.log('onResume',a,b);
+                });
+
+            animate();
+
+            function animate() {
+                requestAnimationFrame(animate);
+                // [...]
+                TimeLine.update();
+                // [...]
+            }
+        };
+    </script>
+</body>
+</html>
