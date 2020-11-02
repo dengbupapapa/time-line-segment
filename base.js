@@ -35,7 +35,7 @@ const plugins = [
 // console.log(path.join(__dirname,'./static/three.min.js'))
 
 export default [{
-    input: './index.js',
+    input: './src/index.js',
     plugins:[...plugins],
     // globals: {
     //     jquery: '$'
@@ -47,7 +47,7 @@ export default [{
     // cache:true,
     output:{name: 'TimeLine',format: 'umd'}
 },{
-    input: './index.js',
+    input: './src/index.js',
     plugins:[...plugins],
     // globals: {
     //     jquery: '$'

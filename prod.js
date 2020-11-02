@@ -12,8 +12,8 @@ function prodConfig(){
             drop_console:false
         }
     }));
-    baseConfig[0].output.file=`./index.umd.js`;
-    baseConfig[1].output.file=`./index.es.js`;
+    baseConfig[0].output.file=`./lib/TimeLine.umd.js`;
+    baseConfig[1].output.file=`./lib/TimeLine.es.js`;
 
     return baseConfig;
 

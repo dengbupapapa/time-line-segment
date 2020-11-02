@@ -1,8 +1,9 @@
 {
   "name": "time-line",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Manage timeline segment transactions",
   "main": "index.umd.js",
+  "module":"index.es.js",
   "scripts": {
     "start": "supervisor -w './app.js' app.js & rollup -c ./dev.js -w --environment NODE_ENV:development",
     "build": "rollup -c ./prod.js --environment NODE_ENV:production"
