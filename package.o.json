@@ -1,12 +1,12 @@
 {
-  "name": "time-line-segment",
-  "version": "1.0.8",
+  "name": "time-line",
+  "version": "1.0.0",
   "description": "Manage timeline segment transactions",
-  "main": "lib/TimeLine.umd.js",
-  "module":"lib/TimeLine.es.js",
-  "directories": {
-    "example": "example",
-    "lib": "lib"
+  "main": "index.umd.js",
+  "module":"index.es.js",
+  "scripts": {
+    "start": "supervisor -w './app.js' app.js & rollup -c ./dev.js -w --environment NODE_ENV:development",
+    "build": "rollup -c ./prod.js --environment NODE_ENV:production"
   },
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.6.0",
@@ -40,25 +40,6 @@
     "body-parser": "^1.19.0",
     "express": "^4.17.1"
   },
-  "scripts": {
-    "test": "npm start",
-    "start": "supervisor -w './app.js' app.js & rollup -c ./dev.js -w --environment NODE_ENV:development",
-    "build": "rollup -c ./prod.js --environment NODE_ENV:production"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dengbupapapa/time-line.git"
-  },
-  "keywords": [
-    "timeline",
-    "arrange",
-    "segment",
-    "transactions"
-  ],
   "author": "dbp",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/dengbupapapa/time-line/issues"
-  },
-  "homepage": "https://github.com/dengbupapapa/time-line#readme"
+  "license": "ISC"
 }
