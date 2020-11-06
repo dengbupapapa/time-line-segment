@@ -7,6 +7,7 @@ import EventDispatcher, {
     PAUSE,
     RESUME,
 } from "./EventDispatcher.js";
+import TimeLine from "./TimeLine.js";
 //tween最小过渡时间
 const minDuration = 100;
 const placeholderTransaction = Symbol();
