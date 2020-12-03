@@ -337,8 +337,11 @@ export default class Segment extends EventDispatcher {
             }
         });
     }
-}
 
+    getTotalTime() {
+        return this._totalTime;
+    }
+}
 
 function createTween({ type, value, fn, easing }) {
     let tween;
