@@ -12,11 +12,10 @@ import TimeLine from "./TimeLine.js";
 const minDuration = 100;
 const placeholderTransaction = Symbol();
 export default class Segment extends EventDispatcher {
-    constructor(name) {
+    constructor() {
         super();
         this._transactions = [];
         this._totalTime = minDuration;
-        this._name = name;
 
         //为了回放有正确的结尾等待，顾创建一个默认从0开始的transaction。
         let placeholderTransactionFn = () => {};
@@ -32,6 +31,22 @@ export default class Segment extends EventDispatcher {
             type: "point",
             value: 0,
         });
+    }
+
+    setName(name) {
+        this._name = name;
+    }
+
+    getName() {
+        return this._name;
+    }
+
+    setId(id) {
+        this._id = id;
+    }
+
+    getId() {
+        return this._id;
     }
 
     start(...names) {
@@ -247,14 +262,26 @@ export default class Segment extends EventDispatcher {
             options = arg.pop();
         }
 
-        let { name, easing = TimeLine.Easing.Linear.None } = options;
+        let { name, id, easing = TimeLine.Easing.Linear.None } = options;
 
         if (typeof easing !== "function") {
             throw new Error("easing is function!");
         }
 
-        if (typeof name !== "undefined" && typeof name !== "string") {
-            throw new Error("name is string!");
+        if (
+            typeof name !== "undefined" &&
+            typeof name !== "string" &&
+            typeof name !== "number"
+        ) {
+            throw new Error("name is string or number!");
+        }
+
+        if (
+            typeof id !== "undefined" &&
+            typeof id !== "string" &&
+            typeof id !== "number"
+        ) {
+            throw new Error("id is string or number!");
         }
 
         let fn = arg.pop();
@@ -276,6 +303,7 @@ export default class Segment extends EventDispatcher {
                 tween,
                 fn,
                 name,
+                id,
                 type: "point",
                 value: arg[0],
             });
@@ -303,6 +331,7 @@ export default class Segment extends EventDispatcher {
                 tween,
                 fn,
                 name,
+                id,
                 type: "interval",
                 value: arg,
             });

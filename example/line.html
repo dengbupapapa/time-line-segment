@@ -154,7 +154,9 @@
 
                 createElement(j);
 
-                let segment = new Segment('name'+j);
+                let segment = new Segment();
+                segment.setName('name'+j);
+                segment.setId(j);
 
                 //添加时间点事务
                 segment
@@ -163,7 +165,8 @@
                         document.getElementById('violet'+j).style.transform=`rotate(${(elapsed*360)}deg)`;
                     }, {
                         easing:TimeLine.Easing.Bounce.In,
-                        name:'violet'+j
+                        name:'violet'+j,
+                        id:j
                     })
                     .transaction(time1, function (time, elapsed, globalPercent) {
                         document.getElementById('red'+j).style.left = (globalPercent*100) + '%';
