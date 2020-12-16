@@ -76,7 +76,7 @@ export default class TimeLine extends EventDispatcher {
     }
 
     start(...target) {
-        if (this._isPlaying) {
+        if (this._isPlaying || this._segments.length === 0) {
             return false;
         }
 
