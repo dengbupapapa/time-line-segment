@@ -254,102 +254,19 @@ export default class Segment extends EventDispatcher {
     }
 
     transaction(...arg) {
-        let options = {};
-        if (
-            Object.prototype.toString.call(arg[arg.length - 1]) ===
-            "[object Object]"
-        ) {
-            options = arg.pop();
-        }
-
-        let { name, id, easing = TimeLine.Easing.Linear.None } = options;
-
-        if (typeof easing !== "function") {
-            throw new Error("easing is function!");
-        }
-
-        if (
-            typeof name !== "undefined" &&
-            typeof name !== "string" &&
-            typeof name !== "number"
-        ) {
-            throw new Error("name is string or number!");
-        }
-
-        if (
-            typeof id !== "undefined" &&
-            typeof id !== "string" &&
-            typeof id !== "number"
-        ) {
-            throw new Error("id is string or number!");
-        }
-
-        let fn = arg.pop();
-        //此参数必须为fn
-        if (typeof fn !== "function") {
-            throw new Error("You need to pass in a function!");
-        }
-
-        if (arg.length === 1) {
-            if (typeof arg[0] !== "number" || arg[0] < 0) {
-                throw new Error(`Invalid time value! should time >= 0.`);
-            }
-            let tween = createTween.call(this, {
-                type: "point",
-                value: arg[0],
-                fn,
-            });
-            this._transactions.push({
-                tween,
-                fn,
-                name,
-                id,
-                type: "point",
-                value: arg[0],
-            });
-            this._totalTime = Math.max(this._totalTime, arg[0]);
-        } else if (arg.length === 2) {
-            if (
-                typeof arg[0] !== "number" ||
-                typeof arg[1] !== "number" ||
-                arg[0] < 0 ||
-                arg[1] < 0
-            ) {
-                throw new Error(`Invalid time value! should time >= 0.`);
-            }
-            if (arg[0] >= arg[1]) {
-                throw new Error("arg[0] < arg[1]!");
-            }
-
-            let tween = createTween.call(this, {
-                type: "interval",
-                value: arg,
-                fn,
-                easing,
-            });
-            this._transactions.push({
-                tween,
-                fn,
-                name,
-                id,
-                type: "interval",
-                value: arg,
-            });
-            this._totalTime = Math.max(this._totalTime, arg[1]);
-        } else {
-            throw new Error("Invalid arguments!");
-        }
-
+        let transactionArguments = formatTransactionArguments.apply(this, arg);
+        this._transactions.push(transactionArguments);
         return this;
     }
 
-    remove(...names) {
-        if (names === 0) return;
+    removeTransaction(...names) {
+        if (names.length === 0) return;
 
         let prevLength = this._transactions.length;
         this._transactions = this._transactions.filter(
-            ({ name }) =>
-                !names.includes(name) || name === placeholderTransaction
+            ({ name, id }) =>
+                (!names.includes(name) && !names.includes(id)) ||
+                name === placeholderTransaction
         );
         let currentLength = this._transactions.length;
 
@@ -367,8 +284,108 @@ export default class Segment extends EventDispatcher {
         });
     }
 
+    editTransaction(identify, ...arg) {
+        this._transactions.forEach((transaction, i) => {
+            let { name, id } = transaction;
+            if (identify === name || identify === id) {
+                this._transactions[i] = formatTransactionArguments.apply(
+                    this,
+                    arg
+                );
+            }
+        });
+    }
+
     getTotalTime() {
         return this._totalTime;
+    }
+}
+
+function formatTransactionArguments(...arg) {
+    let options = {};
+    if (
+        Object.prototype.toString.call(arg[arg.length - 1]) ===
+        "[object Object]"
+    ) {
+        options = arg.pop();
+    }
+
+    let { name, id, easing = TimeLine.Easing.Linear.None } = options;
+
+    if (typeof easing !== "function") {
+        throw new Error("easing is function!");
+    }
+
+    if (
+        typeof name !== "undefined" &&
+        typeof name !== "string" &&
+        typeof name !== "number"
+    ) {
+        throw new Error("name is string or number!");
+    }
+
+    if (
+        typeof id !== "undefined" &&
+        typeof id !== "string" &&
+        typeof id !== "number"
+    ) {
+        throw new Error("id is string or number!");
+    }
+
+    let fn = arg.pop();
+    //此参数必须为fn
+    if (typeof fn !== "function") {
+        throw new Error("You need to pass in a function!");
+    }
+
+    if (arg.length === 1) {
+        if (typeof arg[0] !== "number" || arg[0] < 0) {
+            throw new Error(`Invalid time value! should time >= 0.`);
+        }
+        let tween = createTween.call(this, {
+            type: "point",
+            value: arg[0],
+            fn,
+        });
+        this._totalTime = Math.max(this._totalTime, arg[0]);
+        return {
+            tween,
+            fn,
+            name,
+            id,
+            type: "point",
+            value: arg[0],
+        };
+    } else if (arg.length === 2) {
+        if (
+            typeof arg[0] !== "number" ||
+            typeof arg[1] !== "number" ||
+            arg[0] < 0 ||
+            arg[1] < 0
+        ) {
+            throw new Error(`Invalid time value! should time >= 0.`);
+        }
+        if (arg[0] >= arg[1]) {
+            throw new Error("arg[0] < arg[1]!");
+        }
+
+        let tween = createTween.call(this, {
+            type: "interval",
+            value: arg,
+            fn,
+            easing,
+        });
+        this._totalTime = Math.max(this._totalTime, arg[1]);
+        return {
+            tween,
+            fn,
+            name,
+            id,
+            type: "interval",
+            value: arg,
+        };
+    } else {
+        throw new Error("Invalid arguments!");
     }
 }
 

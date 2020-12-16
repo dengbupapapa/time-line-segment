@@ -33,12 +33,22 @@ export default class TimeLine extends EventDispatcher {
         return this._segments;
     }
 
-    addSegment(...segments) {
+    setSegments(...segments) {
+        segments.forEach((segment) => {
+            if (!(segment instanceof Segment))
+                throw new Error("not instanceof Segment!");
+        });
+        this._segments = segments;
+        this.clearArrangements();
+    }
+
+    addSegments(...segments) {
         segments.forEach((segment) => {
             if (!(segment instanceof Segment))
                 throw new Error("not instanceof Segment!");
         });
         this._segments.push(...segments);
+        this.clearArrangements();
     }
 
     pushForwardArrange() {

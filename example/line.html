@@ -87,7 +87,7 @@
         <button id="lineResume">line继续</button>
     </div>
     <div id="griddingBox" class="griddings"></div>
-    <script type="text/javascript" src="../lib/TimeLine.umd.js"></script>
+    <script type="text/javascript" src="../lib/TimeLine.test.js"></script>
     <script type="text/javascript">
 
         function createElement(k){
@@ -212,7 +212,7 @@
                     .addEventListener('resume', (a)=>{
                         // console.log('onResume',a);
                     });
-                timeLine.addSegment(segment);
+                timeLine.addSegments(segment);
             }
 
             timeLine
