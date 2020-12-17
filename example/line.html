@@ -81,6 +81,7 @@
 
     </div>
     <div>
+        <button id="lineForceStart">line强制开始</button>
         <button id="lineStart">line开始</button>
         <button id="lineStop">line停止</button>
         <button id="linePause">line暂停</button>
@@ -235,6 +236,9 @@
                     console.log('onResume',a);
                 });
 
+            document.getElementById('lineForceStart').addEventListener('click',function(){
+                timeLine.forceStart();
+            });
             document.getElementById('lineStart').addEventListener('click',function(){
                 timeLine.start();
             });

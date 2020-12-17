@@ -215,6 +215,31 @@ export default class TimeLine extends EventDispatcher {
         this._startArrange.start(customSegment);
     }
 
+    forceStart(...target) {
+        let stopSuccess = this.stop();
+        if (stopSuccess === false) {
+            this.start(...target);
+        } else {
+            if (
+                this.hasEventListener(FINISH, this._finishForForceStartCallback)
+            ) {
+                this.removeEventListener(
+                    FINISH,
+                    this._finishForForceStartCallback
+                );
+            }
+            this._finishForForceStartCallback = () => {
+                this.removeEventListener(
+                    FINISH,
+                    this._finishForForceStartCallback
+                );
+                this._finishForForceStartCallback = undefined;
+                this.start(...target);
+            };
+            this.addEventListener(FINISH, this._finishForForceStartCallback);
+        }
+    }
+
     // pushReverse() {}
 
     repeat(_repeat) {

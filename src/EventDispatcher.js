@@ -1,7 +1,14 @@
-
 export default function EventDispatcher() {}
 
 Object.assign(EventDispatcher.prototype, {
+    onceEventListener: function (type, listener) {
+        if (this.hasEventListener(type, listener)) {
+            return this;
+        }
+        listener.type = "once";
+        this.addEventListener(type, listener);
+        return this;
+    },
     addEventListener: function (type, listener) {
         if (this._listeners === undefined) this._listeners = {};
 
@@ -55,6 +62,9 @@ Object.assign(EventDispatcher.prototype, {
 
             for (var i = 0, l = array.length; i < l; i++) {
                 array[i].call(this, event);
+                if (array[i].type === "once") {
+                    this.removeEventListener(event.type, array[i]);
+                }
             }
         }
     },
