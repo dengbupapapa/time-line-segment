@@ -58,12 +58,16 @@ var Group = /** @class */ (function () {
         delete this._tweens[tween.getId()];
         delete this._tweensAddedDuringUpdate[tween.getId()];
     };
+    var nextTime;
     Group.prototype.update = function (time, preserve) {
         var tweenIds = Object.keys(this._tweens);
         if (tweenIds.length === 0) {
             return false;
         }
         time = time !== undefined ? time : NOW$1();
+        var preTime = nextTime;
+        nextTime = time;
+        if(!preTime || !nextTime) return false;
         // Tweens are updated in "batches". If you add a new tween during an
         // update, then the new tween will be updated in the next batch.
         // If you remove a tween during an update, it may or may not be updated.
@@ -73,7 +77,7 @@ var Group = /** @class */ (function () {
             this._tweensAddedDuringUpdate = {};
             for (var i = 0; i < tweenIds.length; i++) {
                 var tween = this._tweens[tweenIds[i]];
-                if (tween && tween.update(time) === false && !preserve) {
+                if (tween && tween.update(preTime, nextTime) === false && !preserve) {
                     delete this._tweens[tweenIds[i]];
                 }
             }
@@ -523,13 +527,16 @@ var Tween = /** @class */ (function () {
         if (this._onStopCallback) {
             this._onStopCallback(this._object);
         }
+        if(this._onBeforeFinishCallback){
+            this._onBeforeFinishCallback(this._object, 'stop');
+        }
         if(this._onFinishCallback){
             this._onFinishCallback(this._object, 'stop');
         }
         return this;
     };
     Tween.prototype.end = function () {
-        this.update(Infinity);
+        this.update(Infinity, Infinity);
         return this;
     };
     Tween.prototype.pause = function (time) {
@@ -616,6 +623,10 @@ var Tween = /** @class */ (function () {
         this._onRepeatCallback = callback;
         return this;
     };
+    Tween.prototype._onBeforeFinish = function (callback) {
+        this._onBeforeFinishCallback = callback;
+        return this;
+    };
     Tween.prototype._onComplete = function (callback) {
         this._onCompleteCallback = callback;
         return this;
@@ -636,7 +647,7 @@ var Tween = /** @class */ (function () {
         this._onResumeCallback = callback;
         return this;
     };
-    Tween.prototype.update = function (time) {
+    Tween.prototype.update = function (time, nextTime) {
         var property;
         var elapsed;
         var endTime = this._startTime + this._duration;
@@ -658,12 +669,20 @@ var Tween = /** @class */ (function () {
         }
         elapsed = (time - this._startTime) / this._duration;
         elapsed = this._duration === 0 || elapsed > 1 ? 1 : elapsed;
+        var nextElapsed = (nextTime - this._startTime) / this._duration;
+        nextElapsed = this._duration === 0 || nextElapsed > 1 ? 1 : nextElapsed;
         var amount = this._playback ? (1-elapsed) : elapsed;
         var value = this._easingFunction(amount);
         // properties transformations
         this._updateProperties(this._object, this._valuesStart, this._valuesEnd, value);
         if (this._onUpdateCallback) {
             this._onUpdateCallback(this._object, elapsed);
+        }
+
+        if(nextElapsed===1){
+            if(this._onBeforeFinishCallback){
+                this._onBeforeFinishCallback(this._object, 'complete');
+            }
         }
         if (elapsed === 1) {
             if (this._repeat > 0) {

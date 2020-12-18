@@ -61,7 +61,7 @@ Object.assign(EventDispatcher.prototype, {
             var array = listenerArray.slice(0);
 
             for (var i = 0, l = array.length; i < l; i++) {
-                array[i].call(this, event);
+                array[i](event);
                 if (array[i].type === "once") {
                     this.removeEventListener(event.type, array[i]);
                 }
@@ -76,3 +76,5 @@ export const FINISH = "finish";
 export const COMPLETE = "complete";
 export const PAUSE = "pause";
 export const RESUME = "resume";
+export const PROGREES = "progress";
+export const BEFORE_FINISH = "beforeFinish";

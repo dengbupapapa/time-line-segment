@@ -5,9 +5,17 @@ import EventDispatcher, {
     COMPLETE,
     PAUSE,
     RESUME,
+    PROGREES,
+    BEFORE_FINISH,
 } from "./EventDispatcher.js";
 import Arrange from "./Arrange.js";
 import Segment from "./Segment.js";
+
+/*
+ *升级版本可使用fn
+ *1、onceEventListener
+ *2、BEFORE_FINISH
+ */
 
 export default class TimeLine extends EventDispatcher {
     constructor() {
@@ -401,7 +409,7 @@ export default class TimeLine extends EventDispatcher {
 
         let isPaused = this._isPaused;
 
-        //如果存在_executeForPrevFinishCallback就先移除，有了_switching，可能并不需要但是为了保险
+        //如果存在_executeForPrevFinishCallback就先移除，有了_executeing，可能并不需要但是为了保险
         if (this.hasEventListener(FINISH, this._executeForPrevFinishCallback)) {
             this.removeEventListener(
                 FINISH,
@@ -413,27 +421,27 @@ export default class TimeLine extends EventDispatcher {
             if (isPaused) {
                 if (
                     segment.hasEventListener(
-                        FINISH,
-                        this._executeForTargetSegmentFinishCallback
+                        BEFORE_FINISH,
+                        this._executeForTargetSegmentBeforreFinishCallback
                     )
                 ) {
                     segment.removeEventListener(
-                        FINISH,
-                        this._executeForTargetSegmentFinishCallback
+                        BEFORE_FINISH,
+                        this._executeForTargetSegmentBeforreFinishCallback
                     );
                 }
-                this._executeForTargetSegmentFinishCallback = () => {
+                this._executeForTargetSegmentBeforreFinishCallback = () => {
                     this.pause();
                     this._executeing = false;
                     segment.removeEventListener(
-                        FINISH,
-                        this._executeForTargetSegmentFinishCallback
+                        BEFORE_FINISH,
+                        this._executeForTargetSegmentBeforreFinishCallback
                     );
-                    this._executeForTargetSegmentFinishCallback = undefined;
+                    this._executeForTargetSegmentBeforreFinishCallback = undefined;
                 };
                 segment.addEventListener(
-                    FINISH,
-                    this._executeForTargetSegmentFinishCallback
+                    BEFORE_FINISH,
+                    this._executeForTargetSegmentBeforreFinishCallback
                 );
             } else {
                 this._executeing = false;
@@ -532,6 +540,13 @@ function arrangeEventBind(arrange) {
     arrange.addEventListener(START, () => {
         if (!this._isPlaying) return;
         this._currentArrange = arrange;
+    });
+    arrange.addEventListener(PROGREES, ({ currentSegment }) => {
+        this.dispatchEvent({
+            type: PROGREES,
+            currentSegment,
+            currentArrange: arrange,
+        });
     });
     // arrange.addEventListener(PAUSE, () => {
     //     this.dispatchEvent({ type: PAUSE });

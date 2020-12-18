@@ -234,6 +234,9 @@
                 })
                 .addEventListener('resume', (a)=>{
                     console.log('onResume',a);
+                })
+                .addEventListener('progress', (a)=>{
+                    console.log('progress',a);
                 });
 
             document.getElementById('lineForceStart').addEventListener('click',function(){

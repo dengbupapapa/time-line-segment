@@ -4,6 +4,7 @@ import EventDispatcher, {
     STOP,
     FINISH,
     COMPLETE,
+    BEFORE_FINISH,
     PAUSE,
     RESUME,
 } from "./EventDispatcher.js";
@@ -281,6 +282,7 @@ export default class Segment extends EventDispatcher {
             } else {
                 throw new Error("transaction type error!");
             }
+            updatePlaceholderTransactionDuration.call(this);
         });
     }
 
@@ -299,6 +301,10 @@ export default class Segment extends EventDispatcher {
     getTotalTime() {
         return this._totalTime;
     }
+}
+
+function updatePlaceholderTransactionDuration() {
+    this._transactions[0].tween.duration(this._totalTime + minDuration);
 }
 
 function formatTransactionArguments(...arg) {
@@ -348,6 +354,8 @@ function formatTransactionArguments(...arg) {
             fn,
         });
         this._totalTime = Math.max(this._totalTime, arg[0]);
+        updatePlaceholderTransactionDuration.call(this);
+
         return {
             tween,
             fn,
@@ -376,6 +384,7 @@ function formatTransactionArguments(...arg) {
             easing,
         });
         this._totalTime = Math.max(this._totalTime, arg[1]);
+        updatePlaceholderTransactionDuration.call(this);
         return {
             tween,
             fn,
@@ -454,6 +463,22 @@ function segmentRun(...names) {
 
     Promise.race(startElements).then(() => {
         this.dispatchEvent({ type: START, transactions });
+    });
+
+    //完整的结束之前
+    let beforeFinishElements = transactions.map(({ tween, type, value }) => {
+        return new Promise((resolve) => {
+            tween._onBeforeFinish(() => {
+                resolve();
+            });
+        });
+    });
+
+    Promise.all(beforeFinishElements).then(() => {
+        // this._isPlaying = false;
+        this.dispatchEvent({ type: BEFORE_FINISH, transactions });
+        //如果有定义下一个衔接的片段
+        // if (this._nextSegment instanceof Segment) this._nextSegment.start();
     });
 
     //完整的结束
