@@ -61,7 +61,7 @@ Object.assign(EventDispatcher.prototype, {
             var array = listenerArray.slice(0);
 
             for (var i = 0, l = array.length; i < l; i++) {
-                array[i](event);
+                array[i].call(this, event);
                 if (array[i].type === "once") {
                     this.removeEventListener(event.type, array[i]);
                 }

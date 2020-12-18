@@ -47,7 +47,10 @@ export default class TimeLine extends EventDispatcher {
                 throw new Error("not instanceof Segment!");
         });
         this._segments = segments;
-        this.clearArrangements();
+        this._arrangements.forEach((arrangement)=>{
+            arrangement.setSegments(...this._segments);
+        })
+        // this.clearArrangements();
     }
 
     addSegments(...segments) {
@@ -56,7 +59,10 @@ export default class TimeLine extends EventDispatcher {
                 throw new Error("not instanceof Segment!");
         });
         this._segments.push(...segments);
-        this.clearArrangements();
+        this._arrangements.forEach((arrangement)=>{
+            arrangement.setSegments(...this._segments);
+        })
+        // this.clearArrangements();
     }
 
     pushForwardArrange() {
@@ -224,10 +230,8 @@ export default class TimeLine extends EventDispatcher {
     }
 
     forceStart(...target) {
-        let stopSuccess = this.stop();
-        if (stopSuccess === false) {
-            this.start(...target);
-        } else {
+        //如果是运行状态，那么需要先停止再开始。
+        if (this._isPlaying) {
             if (
                 this.hasEventListener(FINISH, this._finishForForceStartCallback)
             ) {
@@ -245,6 +249,9 @@ export default class TimeLine extends EventDispatcher {
                 this.start(...target);
             };
             this.addEventListener(FINISH, this._finishForForceStartCallback);
+            this.stop();
+        } else {
+            this.start(...target);
         }
     }
 

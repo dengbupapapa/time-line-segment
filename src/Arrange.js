@@ -5,7 +5,7 @@ import EventDispatcher, {
     COMPLETE,
     PAUSE,
     RESUME,
-    PROGREES
+    PROGREES,
 } from "./EventDispatcher.js";
 import Segment from "./Segment.js";
 export default class Arrange extends EventDispatcher {
@@ -17,17 +17,22 @@ export default class Arrange extends EventDispatcher {
         this._isPlaying = false;
         this._isPaused = false;
 
+        this._currentSegmentStartCallback = ({target}) => {
+            //如果排序处于停止状态则取消监听
+            if (!this._isPlaying) return;
+            this._currentSegment = target;
+            this.dispatchEvent({ type: PROGREES, target });
+        };
+
         //监听片段执行开始时回调
         let length = this._segments.length;
         for (let i = 0; i < length; i++) {
             let currentSegment = this._segments[i];
 
-            currentSegment.addEventListener(START, () => {
-                //如果排序处于停止状态则取消监听
-                if (!this._isPlaying) return;
-                this._currentSegment = currentSegment;
-                this.dispatchEvent({ type: PROGREES, currentSegment });
-            });
+            currentSegment.addEventListener(
+                START,
+                this._currentSegmentStartCallback
+            );
 
             // currentSegment.addEventListener(PAUSE, () => {
             //     //如果排序处于停止状态则取消监听
@@ -64,6 +69,26 @@ export default class Arrange extends EventDispatcher {
         }
     }
 
+    setSegments(...segments) {
+        segments.forEach((segment) => {
+            if (!(segment instanceof Segment)) {
+                throw new Error("not instanceof Segment!");
+            }
+            segment.addEventListener(START, this._currentSegmentStartCallback);
+        });
+        this._segments = segments;
+    }
+
+    addSegments(...segments) {
+        segments.forEach((segment) => {
+            if (!(segment instanceof Segment)) {
+                throw new Error("not instanceof Segment!");
+            }
+            segment.addEventListener(START, this._currentSegmentStartCallback);
+        });
+        this._segments.push(...segments);
+    }
+
     // disable() {
     //     this._enabled = false;
     // }
@@ -91,7 +116,8 @@ export default class Arrange extends EventDispatcher {
         //开始之前先重新链接，并定义开始片段，结束片段
         arrangeMode[this._type].call(this, customSegment);
 
-        if (!(this._startSegment instanceof Segment) ||
+        if (
+            !(this._startSegment instanceof Segment) ||
             typeof this._startSegmentStart !== "function"
         ) {
             this._isPlaying = false;
@@ -113,9 +139,7 @@ export default class Arrange extends EventDispatcher {
             );
         }
         //结束事件回调
-        this._endSegmentFinishCallback = ({
-            transactions
-        }) => {
+        this._endSegmentFinishCallback = ({ transactions }) => {
             if (!this._isPlaying) return;
             this._isPlaying = false;
 
@@ -126,9 +150,7 @@ export default class Arrange extends EventDispatcher {
             );
             this._endSegmentFinishCallback = undefined;
 
-            let result = transactions.map(({
-                finishType
-            }) => finishType);
+            let result = transactions.map(({ finishType }) => finishType);
             //如果有定义下一个衔接的片段，并且没有全部停止，接衔接
             if (
                 typeof this._nextArrangeStrat === "function" &&
@@ -152,7 +174,7 @@ export default class Arrange extends EventDispatcher {
                     );
                     this._currentArrangeFinish2nextArrangeStartCallback = null;
                     this.dispatchEvent({
-                        type: FINISH
+                        type: FINISH,
                     });
                 };
                 this._nextArrange.addEventListener(
@@ -163,7 +185,7 @@ export default class Arrange extends EventDispatcher {
                 this._nextArrangeStrat();
             } else {
                 this.dispatchEvent({
-                    type: FINISH
+                    type: FINISH,
                 });
             }
 
@@ -200,7 +222,7 @@ export default class Arrange extends EventDispatcher {
             this._endSegmentCompleteCallback = undefined;
 
             this.dispatchEvent({
-                type: COMPLETE
+                type: COMPLETE,
             });
         };
         this._endSegment.addEventListener(
@@ -227,7 +249,7 @@ export default class Arrange extends EventDispatcher {
             );
             this._startSegmentCompleteCallback = undefined;
             this.dispatchEvent({
-                type: START
+                type: START,
             });
         };
         this._startSegment.addEventListener(
@@ -243,9 +265,7 @@ export default class Arrange extends EventDispatcher {
             return false;
         }
         if (this._currentSegment instanceof Segment) {
-
             if (this._currentSegment !== this._endSegment) {
-
                 if (
                     this._currentSegment.hasEventListener(
                         FINISH,
@@ -259,20 +279,27 @@ export default class Arrange extends EventDispatcher {
                 }
                 this._currentSegmentFinishForStopCallback = () => {
                     this._isPlaying = false;
-                    this._currentSegment.removeEventListener(FINISH, this._currentSegmentFinishForStopCallback);
+                    this._currentSegment.removeEventListener(
+                        FINISH,
+                        this._currentSegmentFinishForStopCallback
+                    );
                     this._currentSegmentFinishForStopCallback = undefined;
                     this.dispatchEvent({
-                        type: FINISH
+                        type: FINISH,
                     });
-                }
-                this._currentSegment.addEventListener(FINISH, this._currentSegmentFinishForStopCallback);1
+                };
+                this._currentSegment.addEventListener(
+                    FINISH,
+                    this._currentSegmentFinishForStopCallback
+                );
+                1;
                 // this.dispatchEvent({
                 //     type: FINISH
                 // });
             }
             this._currentSegment.stop();
             this.dispatchEvent({
-                type: STOP
+                type: STOP,
             });
         }
     }
@@ -295,13 +322,19 @@ export default class Arrange extends EventDispatcher {
             }
             this._currentSegmentPauseCallback = () => {
                 this._isPaused = true;
-                this._currentSegment.removeEventListener(PAUSE, this._currentSegmentPauseCallback);
+                this._currentSegment.removeEventListener(
+                    PAUSE,
+                    this._currentSegmentPauseCallback
+                );
                 this._currentSegmentPauseCallback = undefined;
                 this.dispatchEvent({
-                    type: PAUSE
+                    type: PAUSE,
                 });
-            }
-            this._currentSegment.addEventListener(PAUSE, this._currentSegmentPauseCallback);
+            };
+            this._currentSegment.addEventListener(
+                PAUSE,
+                this._currentSegmentPauseCallback
+            );
             this._currentSegment.pause();
         }
     }
@@ -324,13 +357,19 @@ export default class Arrange extends EventDispatcher {
             }
             this._currentSegmentResumeCallback = () => {
                 this._isPaused = false;
-                this._currentSegment.removeEventListener(RESUME, this._currentSegmentResumeCallback);
+                this._currentSegment.removeEventListener(
+                    RESUME,
+                    this._currentSegmentResumeCallback
+                );
                 this._currentSegmentResumeCallback = undefined;
                 this.dispatchEvent({
-                    type: RESUME
+                    type: RESUME,
                 });
-            }
-            this._currentSegment.addEventListener(RESUME, this._currentSegmentResumeCallback);
+            };
+            this._currentSegment.addEventListener(
+                RESUME,
+                this._currentSegmentResumeCallback
+            );
             this._currentSegment.resume();
         }
     }
@@ -348,7 +387,8 @@ export default class Arrange extends EventDispatcher {
     }
 
     execute(segment) {
-        if (!this._isPlaying ||
+        if (
+            !this._isPlaying ||
             !(segment instanceof Segment) ||
             this._executeing
         ) {
@@ -411,8 +451,9 @@ export default class Arrange extends EventDispatcher {
         this.stop();
     }
 
-    switch (segment) {
-        if (!this._isPlaying ||
+    switch(segment) {
+        if (
+            !this._isPlaying ||
             !(segment instanceof Segment) ||
             this._switching
         ) {
