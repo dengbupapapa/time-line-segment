@@ -414,7 +414,7 @@ function createTween({ type, value, fn, easing }) {
         tween._onUpdate(({ time }) => {
             let percent = (time - value[0]) / (value[1] - value[0]);
             let globalPercent = time / this._totalTime;
-            fn(time, percent, globalPercent);
+            fn.call(this, time, percent, globalPercent);
         });
         if (easing) tween.easing(easing);
     } else if (type === "point") {
@@ -424,9 +424,9 @@ function createTween({ type, value, fn, easing }) {
         tween.duration(minDuration);
     }
 
-    tween._onStart(({ time }) => {
-        fn(time, 0, time / this._totalTime);
-    });
+    // tween._onStart(({ time }) => {
+    //     fn.call(this, time, 0, time / this._totalTime);
+    // });
     return tween;
 }
 
@@ -455,7 +455,7 @@ function segmentRun(...names) {
     let startElements = transactions.map(({ tween, fn }) => {
         return new Promise((resolve) => {
             tween._onStart(({ time }) => {
-                fn(time, 0, time / this._totalTime);
+                fn.call(this, time, 0, time / this._totalTime);
                 resolve();
             });
         });
