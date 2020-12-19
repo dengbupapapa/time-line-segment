@@ -184,6 +184,9 @@
                 })
                 .addEventListener('resume', (a,b)=>{
                     console.log('onResume',a,b);
+                })
+                .addEventListener('update', (...a)=>{
+                    console.log('onUpdate',...a);
                 });
 
             animate();

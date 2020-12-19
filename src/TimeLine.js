@@ -5,7 +5,7 @@ import EventDispatcher, {
     COMPLETE,
     PAUSE,
     RESUME,
-    PROGRESS,
+    UPDATE,
     BEFORE_FINISH,
 } from "./EventDispatcher.js";
 import Arrange from "./Arrange.js";
@@ -559,9 +559,9 @@ function arrangeEventBind(arrange) {
         if (!this._isPlaying) return;
         this._currentArrange = arrange;
     });
-    arrange.addEventListener(PROGRESS, ({ currentSegment }) => {
+    arrange.addEventListener(UPDATE, ({ currentSegment }) => {
         this.dispatchEvent({
-            type: PROGRESS,
+            type: UPDATE,
             currentSegment,
             currentArrange: arrange,
         });

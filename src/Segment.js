@@ -7,6 +7,7 @@ import EventDispatcher, {
     BEFORE_FINISH,
     PAUSE,
     RESUME,
+    UPDATE,
 } from "./EventDispatcher.js";
 import TimeLine from "./TimeLine.js";
 //tween最小过渡时间
@@ -18,20 +19,8 @@ export default class Segment extends EventDispatcher {
         this._transactions = [];
         this._totalTime = minDuration;
 
-        //为了回放有正确的结尾等待，顾创建一个默认从0开始的transaction。
-        let placeholderTransactionFn = () => {};
-        let tween = createTween.call(this, {
-            type: "point",
-            value: 0,
-            fn: placeholderTransactionFn,
-        });
-        this._transactions.push({
-            tween,
-            fn: placeholderTransactionFn,
-            name: placeholderTransaction,
-            type: "point",
-            value: 0,
-        });
+        //为了回放有正确的结尾等待，顾创建一个默认从0开始到结束的transaction。
+        updatePlaceholderTransactionDuration.call(this);
     }
 
     setName(name) {
@@ -304,7 +293,37 @@ export default class Segment extends EventDispatcher {
 }
 
 function updatePlaceholderTransactionDuration() {
-    this._transactions[0].tween.duration(this._totalTime + minDuration);
+    //为了回放有正确的结尾等待，顾创建一个默认从0开始的transaction。
+    let placeholderTransactionFn = (
+        time,
+        elapsed,
+        globalPercent,
+        totalTime
+    ) => {
+        //为了防止超标，且保留结束前的事件
+        globalPercent = globalPercent > 1 ? 1 : globalPercent;
+        time = time > this._totalTime ? this._totalTime : time;
+        this.dispatchEvent({
+            type: UPDATE,
+            time,
+            elapsed,
+            globalPercent,
+            totalTime,
+        });
+    };
+    let endTime = this._totalTime + minDuration;
+    let tween = createTween.call(this, {
+        type: "interval",
+        value: [0, endTime],
+        fn: placeholderTransactionFn,
+    });
+    this._transactions[0] = {
+        tween,
+        fn: placeholderTransactionFn,
+        name: placeholderTransaction,
+        type: "interval",
+        value: [0, endTime],
+    };
 }
 
 function formatTransactionArguments(...arg) {
