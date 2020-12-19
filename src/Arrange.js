@@ -5,7 +5,7 @@ import EventDispatcher, {
     COMPLETE,
     PAUSE,
     RESUME,
-    PROGREES,
+    PROGRESS,
 } from "./EventDispatcher.js";
 import Segment from "./Segment.js";
 export default class Arrange extends EventDispatcher {
@@ -21,7 +21,7 @@ export default class Arrange extends EventDispatcher {
             //如果排序处于停止状态则取消监听
             if (!this._isPlaying) return;
             this._currentSegment = target;
-            this.dispatchEvent({ type: PROGREES, target });
+            this.dispatchEvent({ type: PROGRESS, currentSegment:target });
         };
 
         //监听片段执行开始时回调

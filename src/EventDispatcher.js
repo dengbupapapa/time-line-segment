@@ -76,5 +76,5 @@ export const FINISH = "finish";
 export const COMPLETE = "complete";
 export const PAUSE = "pause";
 export const RESUME = "resume";
-export const PROGREES = "progress";
+export const PROGRESS = "progress";
 export const BEFORE_FINISH = "beforeFinish";

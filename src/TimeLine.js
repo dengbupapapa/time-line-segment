@@ -5,7 +5,7 @@ import EventDispatcher, {
     COMPLETE,
     PAUSE,
     RESUME,
-    PROGREES,
+    PROGRESS,
     BEFORE_FINISH,
 } from "./EventDispatcher.js";
 import Arrange from "./Arrange.js";
@@ -27,6 +27,9 @@ export default class TimeLine extends EventDispatcher {
         this._repeat = 1;
 
         this._arrangements = [];
+        this._forceStartForStartCallback = () => {
+            this._forceStarting = false;
+        };
     }
 
     getSegmentById(id) {
@@ -47,9 +50,9 @@ export default class TimeLine extends EventDispatcher {
                 throw new Error("not instanceof Segment!");
         });
         this._segments = segments;
-        this._arrangements.forEach((arrangement)=>{
+        this._arrangements.forEach((arrangement) => {
             arrangement.setSegments(...this._segments);
-        })
+        });
         // this.clearArrangements();
     }
 
@@ -59,9 +62,9 @@ export default class TimeLine extends EventDispatcher {
                 throw new Error("not instanceof Segment!");
         });
         this._segments.push(...segments);
-        this._arrangements.forEach((arrangement)=>{
+        this._arrangements.forEach((arrangement) => {
             arrangement.setSegments(...this._segments);
-        })
+        });
         // this.clearArrangements();
     }
 
@@ -230,6 +233,11 @@ export default class TimeLine extends EventDispatcher {
     }
 
     forceStart(...target) {
+        if (this._forceStarting) {
+            return false;
+        }
+        this._forceStarting = true;
+
         //如果是运行状态，那么需要先停止再开始。
         if (this._isPlaying) {
             if (
@@ -246,12 +254,15 @@ export default class TimeLine extends EventDispatcher {
                     this._finishForForceStartCallback
                 );
                 this._finishForForceStartCallback = undefined;
+                this.onceEventListener(START, this._forceStartForStartCallback);
                 this.start(...target);
             };
             this.addEventListener(FINISH, this._finishForForceStartCallback);
             this.stop();
         } else {
+            this.onceEventListener(START, this._forceStartForStartCallback);
             this.start(...target);
+            this._forceStarting = false;
         }
     }
 
@@ -548,9 +559,9 @@ function arrangeEventBind(arrange) {
         if (!this._isPlaying) return;
         this._currentArrange = arrange;
     });
-    arrange.addEventListener(PROGREES, ({ currentSegment }) => {
+    arrange.addEventListener(PROGRESS, ({ currentSegment }) => {
         this.dispatchEvent({
-            type: PROGREES,
+            type: PROGRESS,
             currentSegment,
             currentArrange: arrange,
         });
