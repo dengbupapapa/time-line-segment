@@ -19,8 +19,37 @@ export default class Segment extends EventDispatcher {
         this._transactions = [];
         this._totalTime = minDuration;
 
+        let placeholderTransactionFn = (
+            time,
+            elapsed,
+            globalPercent,
+            totalTime
+        ) => {
+            //为了防止超标，且保留结束前的事件
+            globalPercent = globalPercent > 1 ? 1 : globalPercent;
+            time = time > this._totalTime ? this._totalTime : time;
+            this.dispatchEvent({
+                type: UPDATE,
+                time,
+                elapsed,
+                globalPercent,
+                totalTime,
+            });
+        };
+        let tween = createTween.call(this, {
+            type: "interval",
+            value: [0, minDuration],
+            fn: placeholderTransactionFn,
+        });
+        this._transactions[0] = {
+            tween,
+            fn: placeholderTransactionFn,
+            name: placeholderTransaction,
+            type: "interval",
+            value: [0, minDuration],
+        };
         //为了回放有正确的结尾等待，顾创建一个默认从0开始到结束的transaction。
-        updatePlaceholderTransactionDuration.call(this);
+        // updatePlaceholderTransactionDuration.call(this);
     }
 
     setName(name) {
@@ -294,36 +323,50 @@ export default class Segment extends EventDispatcher {
 
 function updatePlaceholderTransactionDuration() {
     //为了回放有正确的结尾等待，顾创建一个默认从0开始的transaction。
-    let placeholderTransactionFn = (
-        time,
-        elapsed,
-        globalPercent,
-        totalTime
-    ) => {
-        //为了防止超标，且保留结束前的事件
-        globalPercent = globalPercent > 1 ? 1 : globalPercent;
-        time = time > this._totalTime ? this._totalTime : time;
-        this.dispatchEvent({
-            type: UPDATE,
-            time,
-            elapsed,
-            globalPercent,
-            totalTime,
-        });
-    };
+    // let placeholderTransactionFn = (
+    //     time,
+    //     elapsed,
+    //     globalPercent,
+    //     totalTime
+    // ) => {
+    //     //为了防止超标，且保留结束前的事件
+    //     globalPercent = globalPercent > 1 ? 1 : globalPercent;
+    //     time = time > this._totalTime ? this._totalTime : time;
+    //     this.dispatchEvent({
+    //         type: UPDATE,
+    //         time,
+    //         elapsed,
+    //         globalPercent,
+    //         totalTime,
+    //     });
+    // };
+    // let endTime = this._totalTime + minDuration;
+    // let tween = createTween.call(this, {
+    //     type: "interval",
+    //     value: [0, endTime],
+    //     fn: placeholderTransactionFn,
+    // });
+    // this._transactions[0] = {
+    //     tween,
+    //     fn: placeholderTransactionFn,
+    //     name: placeholderTransaction,
+    //     type: "interval",
+    //     value: [0, endTime],
+    // };
+
     let endTime = this._totalTime + minDuration;
-    let tween = createTween.call(this, {
-        type: "interval",
-        value: [0, endTime],
-        fn: placeholderTransactionFn,
+    this._transactions[0].tween.to(
+        {
+            time: endTime,
+        },
+        endTime
+    );
+
+    this._transactions[0].tween._onUpdate(({ time }) => {
+        let percent = time / endTime;
+        let globalPercent = time / endTime;
+        this._transactions[0].fn(time, percent, globalPercent, this._totalTime);
     });
-    this._transactions[0] = {
-        tween,
-        fn: placeholderTransactionFn,
-        name: placeholderTransaction,
-        type: "interval",
-        value: [0, endTime],
-    };
 }
 
 function formatTransactionArguments(...arg) {
