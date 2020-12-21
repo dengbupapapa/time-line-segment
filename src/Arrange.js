@@ -512,6 +512,12 @@ export default class Arrange extends EventDispatcher {
     back() {
         this._type = "back";
     }
+
+    dispose() {
+        this.removeChain();
+        this._segments = [];
+        this.disposeEvent();
+    }
 }
 
 let arrangeMode = {
@@ -581,14 +587,5 @@ let arrangeMode = {
             this._startSegment
         );
         this._endSegment = this._segments[0];
-    },
-    dispose() {
-        this.removeChain();
-        let length = this._segments.length;
-        for (let i = 0; i < length; i++) {
-            this._segments[i].dispose();
-        }
-        this._segments = [];
-        this.disposeEvent();
     },
 };

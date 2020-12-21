@@ -560,10 +560,6 @@ export default class TimeLine extends EventDispatcher {
                 for (let i = 0; i < currentArrangelength; i++) {
                     this._currentArrange[i].dispose();
                 }
-                let segmentslength = this._segments.length;
-                for (let i = 0; i < segmentslength; i++) {
-                    this._segments[i].dispose();
-                }
                 this._currentArrange = [];
                 this._segments = [];
                 this.disposeEvent();
