@@ -319,6 +319,11 @@ export default class Segment extends EventDispatcher {
     getTotalTime() {
         return this._totalTime;
     }
+    dispose() {
+        this.removeChain();
+        this._transactions = [];
+        this.disposeEvent();
+    }
 }
 
 function updatePlaceholderTransactionDuration() {

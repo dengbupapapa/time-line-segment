@@ -68,6 +68,9 @@ Object.assign(EventDispatcher.prototype, {
             }
         }
     },
+    disposeEvent(){
+        this._listeners = undefined;
+    }
 });
 
 export const START = "start";

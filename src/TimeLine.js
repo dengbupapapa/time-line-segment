@@ -552,6 +552,30 @@ export default class TimeLine extends EventDispatcher {
         //无论如何先停止
         this.stop();
     }
+    dispose() {
+        if (!this._disposeFinishCallback) {
+            //销毁前先停止事件
+            this._disposeFinishCallback = () => {
+                let currentArrangelength = this._currentArrange.length;
+                for (let i = 0; i < currentArrangelength; i++) {
+                    this._currentArrange[i].dispose();
+                }
+                let segmentslength = this._segments.length;
+                for (let i = 0; i < segmentslength; i++) {
+                    this._segments[i].dispose();
+                }
+                this._currentArrange = [];
+                this._segments = [];
+                this.disposeEvent();
+            };
+        }
+        if (this._isPlaying) {
+            this.onceEventListener(FINISH, this._disposeFinishCallback);
+            this.stop();
+        } else {
+            this._disposeFinishCallback();
+        }
+    }
 }
 
 function arrangeEventBind(arrange) {

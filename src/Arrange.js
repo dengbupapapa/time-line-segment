@@ -5,7 +5,7 @@ import EventDispatcher, {
     COMPLETE,
     PAUSE,
     RESUME,
-    UPDATE
+    UPDATE,
 } from "./EventDispatcher.js";
 import Segment from "./Segment.js";
 export default class Arrange extends EventDispatcher {
@@ -17,11 +17,11 @@ export default class Arrange extends EventDispatcher {
         this._isPlaying = false;
         this._isPaused = false;
 
-        this._currentSegmentStartCallback = ({target}) => {
+        this._currentSegmentStartCallback = ({ target }) => {
             //如果排序处于停止状态则取消监听
             if (!this._isPlaying) return;
             this._currentSegment = target;
-            this.dispatchEvent({ type: UPDATE, currentSegment:target });
+            this.dispatchEvent({ type: UPDATE, currentSegment: target });
         };
 
         //监听片段执行开始时回调
@@ -581,5 +581,14 @@ let arrangeMode = {
             this._startSegment
         );
         this._endSegment = this._segments[0];
+    },
+    dispose() {
+        this.removeChain();
+        let length = this._segments.length;
+        for (let i = 0; i < length; i++) {
+            this._segments[i].dispose();
+        }
+        this._segments = [];
+        this.disposeEvent();
     },
 };
