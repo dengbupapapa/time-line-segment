@@ -556,11 +556,12 @@ export default class TimeLine extends EventDispatcher {
         if (!this._disposeFinishCallback) {
             //销毁前先停止事件
             this._disposeFinishCallback = () => {
-                let currentArrangelength = this._currentArrange.length;
-                for (let i = 0; i < currentArrangelength; i++) {
-                    this._currentArrange[i].dispose();
+                let arrangementsLength = this._arrangements.length;
+                for (let i = 0; i < arrangementsLength; i++) {
+                    this._arrangements[i].dispose();
                 }
-                this._currentArrange = [];
+                this._currentArrange = undefined;
+                this._arrangements = [];
                 this._segments = [];
                 this.disposeEvent();
             };
