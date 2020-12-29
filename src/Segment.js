@@ -519,10 +519,11 @@ function segmentRun(...names) {
     if (transactions.length === 0) return false;
 
     //开始
-    let startElements = transactions.map(({ tween, fn }) => {
+    let startElements = transactions.map(({ tween, fn, type }) => {
         return new Promise((resolve) => {
             tween._onStart(({ time }) => {
-                fn(time, 0, time / this._totalTime, this._totalTime);
+                let elapsed = type === "interval" ? 0 : 1;
+                fn(time, elapsed, time / this._totalTime, this._totalTime);
                 resolve();
             });
         });

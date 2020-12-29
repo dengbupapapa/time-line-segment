@@ -169,7 +169,8 @@
                         name:'violet'+j,
                         id:j
                     })
-                    .transaction(time1, function (time, elapsed, globalPercent) {
+                    .transaction(time1, function (time, elapsed, globalPercent, totalTime) {
+                        console.log(time, elapsed, globalPercent, totalTime);
                         document.getElementById('red'+j).style.left = (globalPercent*100) + '%';
                         document.getElementById('red'+j).style.transform=`rotate(${(globalPercent*360)}deg)`;
                     })
