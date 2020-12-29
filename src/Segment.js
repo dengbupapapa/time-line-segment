@@ -40,6 +40,7 @@ export default class Segment extends EventDispatcher {
             type: "interval",
             value: [0, minDuration],
             fn: placeholderTransactionFn,
+            finishAfterStatusExec:true
         });
         this._transactions[0] = {
             tween,
@@ -47,9 +48,12 @@ export default class Segment extends EventDispatcher {
             name: placeholderTransaction,
             type: "interval",
             value: [0, minDuration],
+            finishAfterStatusExec:true
         };
         //为了回放有正确的结尾等待，顾创建一个默认从0开始到结束的transaction。
         // updatePlaceholderTransactionDuration.call(this);
+
+        //结束后需要重置的状态
         this.addEventListener(FINISH, () => {
             let totalTime = this.getTotalTime();
             if (this._finishAfterStatus === "start") {
@@ -64,12 +68,15 @@ export default class Segment extends EventDispatcher {
                         return timeB - timeA;
                     }
                 );
-                transactionsSort.forEach(({ fn, value, type }) => {
-                    let time = value instanceof Array ? value[0] : value;
-                    let elapsed = type === "interval" ? 0 : 1;
-                    let globalPercent = time / totalTime;
-                    fn(time, elapsed, globalPercent, totalTime);
-                });
+                transactionsSort.forEach(
+                    ({ fn, value, type, finishAfterStatusExec }) => {
+                        if (!finishAfterStatusExec) return;
+                        let time = value instanceof Array ? value[0] : value;
+                        let elapsed = type === "interval" ? 0 : 1;
+                        let globalPercent = time / totalTime;
+                        fn(time, elapsed, globalPercent, totalTime);
+                    }
+                );
             } else if (this._finishAfterStatus === "end") {
                 let transactionsSort = [...this._transactions].sort(
                     (transactionA, transactionB) => {
@@ -82,11 +89,14 @@ export default class Segment extends EventDispatcher {
                         return timeA - timeB;
                     }
                 );
-                transactionsSort.forEach(({ fn, value }) => {
-                    let time = value instanceof Array ? value[1] : value;
-                    let globalPercent = time / totalTime;
-                    fn(time, 1, globalPercent, totalTime);
-                });
+                transactionsSort.forEach(
+                    ({ fn, value, finishAfterStatusExec }) => {
+                        if (!finishAfterStatusExec) return;
+                        let time = value instanceof Array ? value[1] : value;
+                        let globalPercent = time / totalTime;
+                        fn(time, 1, globalPercent, totalTime);
+                    }
+                );
             } else {
                 //默认状态什么都不做
             }
@@ -432,7 +442,12 @@ function formatTransactionArguments(...arg) {
         options = arg.pop();
     }
 
-    let { name, id, easing = TimeLine.Easing.Linear.None } = options;
+    let {
+        name,
+        id,
+        easing = TimeLine.Easing.Linear.None,
+        finishAfterStatusExec = true,
+    } = options;
 
     if (typeof easing !== "function") {
         throw new Error("easing is function!");
@@ -479,6 +494,7 @@ function formatTransactionArguments(...arg) {
             id,
             type: "point",
             value: arg[0],
+            finishAfterStatusExec
         };
     } else if (arg.length === 2) {
         if (
@@ -508,6 +524,7 @@ function formatTransactionArguments(...arg) {
             id,
             type: "interval",
             value: arg,
+            finishAfterStatusExec,
         };
     } else {
         throw new Error("Invalid arguments!");

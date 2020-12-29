@@ -158,6 +158,7 @@
                 let segment = new Segment();
                 segment.setName('name'+j);
                 segment.setId(j);
+                segment.setFinishAfterStatus("end");
                 //添加时间点事务
                 segment
                     .transaction(startTime4, endTime4, function (time, elapsed) {
@@ -166,7 +167,8 @@
                     }, {
                         easing:TimeLine.Easing.Bounce.In,
                         name:'violet'+j,
-                        id:j
+                        id:j,
+                        finishAfterStatusExec:false
                     })
                     .transaction(time1, function (time, elapsed, globalPercent, totalTime) {
                         document.getElementById('red'+j).style.left = (globalPercent*100) + '%';
