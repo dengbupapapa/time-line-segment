@@ -158,7 +158,6 @@
                 let segment = new Segment();
                 segment.setName('name'+j);
                 segment.setId(j);
-
                 //添加时间点事务
                 segment
                     .transaction(startTime4, endTime4, function (time, elapsed) {
@@ -170,7 +169,6 @@
                         id:j
                     })
                     .transaction(time1, function (time, elapsed, globalPercent, totalTime) {
-                        console.log(time, elapsed, globalPercent, totalTime);
                         document.getElementById('red'+j).style.left = (globalPercent*100) + '%';
                         document.getElementById('red'+j).style.transform=`rotate(${(globalPercent*360)}deg)`;
                     })

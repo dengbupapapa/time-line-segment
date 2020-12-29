@@ -50,6 +50,54 @@ export default class Segment extends EventDispatcher {
         };
         //为了回放有正确的结尾等待，顾创建一个默认从0开始到结束的transaction。
         // updatePlaceholderTransactionDuration.call(this);
+        this.addEventListener(FINISH, () => {
+            let totalTime = this.getTotalTime();
+            if (this._finishAfterStatus === "start") {
+                let transactionsSort = [...this._transactions].sort(
+                    (transactionA, transactionB) => {
+                        let valueA = transactionA.value;
+                        let valueB = transactionB.value;
+                        let timeA =
+                            valueA instanceof Array ? valueA[0] : valueA;
+                        let timeB =
+                            valueB instanceof Array ? valueB[0] : valueB;
+                        return timeB - timeA;
+                    }
+                );
+                transactionsSort.forEach(({ fn, value, type }) => {
+                    let time = value instanceof Array ? value[0] : value;
+                    let elapsed = type === "interval" ? 0 : 1;
+                    let globalPercent = time / totalTime;
+                    fn(time, elapsed, globalPercent, totalTime);
+                });
+            } else if (this._finishAfterStatus === "end") {
+                let transactionsSort = [...this._transactions].sort(
+                    (transactionA, transactionB) => {
+                        let valueA = transactionA.value;
+                        let valueB = transactionB.value;
+                        let timeA =
+                            valueA instanceof Array ? valueA[1] : valueA;
+                        let timeB =
+                            valueB instanceof Array ? valueB[1] : valueB;
+                        return timeA - timeB;
+                    }
+                );
+                transactionsSort.forEach(({ fn, value }) => {
+                    let time = value instanceof Array ? value[1] : value;
+                    let globalPercent = time / totalTime;
+                    fn(time, 1, globalPercent, totalTime);
+                });
+            } else {
+                //默认状态什么都不做
+            }
+        });
+    }
+
+    /*
+     *设置任何原因导致的结束后，事务是应该保持现有状态，还是结束状态，还是开始状态
+     */
+    setFinishAfterStatus(status = "default") {
+        this._finishAfterStatus = status;
     }
 
     setName(name) {
@@ -366,6 +414,7 @@ function updatePlaceholderTransactionDuration() {
         },
         endTime
     );
+    this._transactions[0].value = [0, endTime];
 
     this._transactions[0].tween._onUpdate(({ time }) => {
         let percent = time / endTime;
