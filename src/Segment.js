@@ -325,6 +325,13 @@ export default class Segment extends EventDispatcher {
         });
     }
 
+    transactions(...arg) {
+        let transactionsArguments = []
+            .concat(...arg)
+            .map((...item) => formatTransactionArguments.apply(this, item));
+        this._transactions = transactionsArguments;
+    }
+
     getTotalTime() {
         return this._totalTime;
     }
