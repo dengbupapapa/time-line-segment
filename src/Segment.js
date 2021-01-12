@@ -326,10 +326,11 @@ export default class Segment extends EventDispatcher {
     }
 
     transactions(...arg) {
-        let transactionsArguments = []
-            .concat(...arg)
-            .map((...item) => formatTransactionArguments.apply(this, item));
-        this._transactions = transactionsArguments;
+        this._totalTime = minDuration;
+        let transactionsArguments = arg.map((item) =>
+            formatTransactionArguments.apply(this, item)
+        );
+        this._transactions = [this._transactions[0], ...transactionsArguments];
     }
 
     getTotalTime() {

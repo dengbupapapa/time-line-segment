@@ -219,27 +219,29 @@
 
             timeLine
                 .addEventListener('start', (a)=>{
-                    console.log('onStart',a);
+                    // console.log('onStart',a);
                 })
                 .addEventListener('stop', (a)=>{
-                    console.log('onStop',a);
+                    // console.log('onStop',a);
                 })
                 .addEventListener('complete', (a)=>{
-                    console.log('onComplete',a);
+                    // console.log('onComplete',a);
                 })
                 .addEventListener('finish', (a)=>{
-                    console.log('onFinish',a);
+                    // console.log('onFinish',a);
                 })
                 .addEventListener('pause', (a)=>{
-                    console.log('onPause',a);
+                    // console.log('onPause',a);
                 })
                 .addEventListener('resume', (a)=>{
-                    console.log('onResume',a);
+                    // console.log('onResume',a);
                 })
                 .addEventListener('progress', (a)=>{
-                    console.log('progress',a);
+                    // console.log('progress',a);
+                })
+                .addEventListener("update", (a)=>{
+                    console.log('update');
                 });
-
             document.getElementById('lineForceStart').addEventListener('click',function(){
                 timeLine.forceStart();
             });
