@@ -1,6 +1,6 @@
 {
   "name": "time-line-segment",
-  "version": "1.0.46",
+  "version": "1.0.49",
   "description": "Manage timeline segment transactions",
   "main": "lib/TimeLine.umd.js",
   "module":"lib/TimeLine.es.js",

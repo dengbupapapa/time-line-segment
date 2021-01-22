@@ -157,6 +157,7 @@ export default class Arrange extends EventDispatcher {
                 result.includes("complete")
             ) {
                 if (
+                    this._nextArrange instanceof Arrange &&
                     this._nextArrange.hasEventListener(
                         START,
                         this._currentArrangeFinish2nextArrangeStartCallback
@@ -168,21 +169,25 @@ export default class Arrange extends EventDispatcher {
                     );
                 }
                 this._currentArrangeFinish2nextArrangeStartCallback = () => {
-                    this._nextArrange.removeEventListener(
-                        START,
-                        this._currentArrangeFinish2nextArrangeStartCallback
-                    );
+                    if (this._nextArrange instanceof Arrange) {
+                        this._nextArrange.removeEventListener(
+                            START,
+                            this._currentArrangeFinish2nextArrangeStartCallback
+                        );
+                    }
                     this._currentArrangeFinish2nextArrangeStartCallback = null;
                     this.dispatchEvent({
                         type: FINISH,
                     });
                 };
-                this._nextArrange.addEventListener(
-                    START,
-                    this._currentArrangeFinish2nextArrangeStartCallback
-                );
+                if (this._nextArrange instanceof Arrange) {
+                    this._nextArrange.addEventListener(
+                        START,
+                        this._currentArrangeFinish2nextArrangeStartCallback
+                    );
 
-                this._nextArrangeStrat();
+                    this._nextArrangeStrat();
+                }
             } else {
                 this.dispatchEvent({
                     type: FINISH,

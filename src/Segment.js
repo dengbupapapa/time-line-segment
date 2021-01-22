@@ -337,9 +337,23 @@ export default class Segment extends EventDispatcher {
         return this._totalTime;
     }
     dispose() {
-        this.removeChain();
-        this._transactions = [];
-        this.disposeEvent();
+        let transactions = this._transactions.filter(
+            ({ tween }) => tween._isPlaying
+        );
+        if (!this._disposeFinishCallback) {
+            //销毁前先停止事件
+            this._disposeFinishCallback = () => {
+                this.removeChain();
+                this._transactions = [];
+                this.disposeEvent();
+            };
+        }
+        if (transactions.length === 0) {
+            this._disposeFinishCallback();
+        } else {
+            this.onceEventListener(FINISH, this._disposeFinishCallback);
+            this.stop();
+        }
     }
 }
 
@@ -388,7 +402,14 @@ function updatePlaceholderTransactionDuration() {
     this._transactions[0].tween._onUpdate(({ time }) => {
         let percent = time / endTime;
         let globalPercent = time / endTime;
-        this._transactions[0].fn(time, percent, globalPercent, this._totalTime);
+        typeof this._transactions[0] &&
+            this._transactions[0].fn === "function" &&
+            this._transactions[0].fn(
+                time,
+                percent,
+                globalPercent,
+                this._totalTime
+            );
     });
 }
 
@@ -506,7 +527,8 @@ function createTween({ type, value, fn, easing }) {
         tween._onUpdate(({ time }) => {
             let percent = (time - value[0]) / (value[1] - value[0]);
             let globalPercent = time / this._totalTime;
-            fn(time, percent, globalPercent, this._totalTime);
+            typeof fn === "function" &&
+                fn(time, percent, globalPercent, this._totalTime);
         });
         if (easing) tween.easing(easing);
     } else if (type === "point") {
@@ -637,6 +659,7 @@ function segmentRun(...names) {
         ) {
             //先开始在结束，防止_currentSegment有间隙无法正常操作
             if (
+                this._nextSegment instanceof Segment &&
                 this._nextSegment.hasEventListener(
                     START,
                     this._currentSegmentFinish2nextSegmentStartCallback
@@ -648,18 +671,22 @@ function segmentRun(...names) {
                 );
             }
             this._currentSegmentFinish2nextSegmentStartCallback = () => {
-                this._nextSegment.removeEventListener(
-                    START,
-                    this._currentSegmentFinish2nextSegmentStartCallback
-                );
+                if (this._nextSegment instanceof Segment) {
+                    this._nextSegment.removeEventListener(
+                        START,
+                        this._currentSegmentFinish2nextSegmentStartCallback
+                    );
+                }
                 this._currentSegmentFinish2nextSegmentStartCallback = null;
                 this.dispatchEvent({ type: FINISH, transactions });
             };
-            this._nextSegment.addEventListener(
-                START,
-                this._currentSegmentFinish2nextSegmentStartCallback
-            );
-            this._nextSegmentStrat();
+            if (this._nextSegment instanceof Segment) {
+                this._nextSegment.addEventListener(
+                    START,
+                    this._currentSegmentFinish2nextSegmentStartCallback
+                );
+                this._nextSegmentStrat();
+            }
         } else {
             this.dispatchEvent({ type: FINISH, transactions });
         }
